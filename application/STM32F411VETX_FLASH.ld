@@ -41,19 +41,16 @@ _estack = ORIGIN(RAM) + LENGTH(RAM); /* end of "RAM" Ram type memory */
 _Min_Heap_Size = 0x200; /* required amount of heap */
 _Min_Stack_Size = 0x400; /* required amount of stack */
 
-__flash_start = ORIGIN(FLASH); /* define a global symbols at start of FLASH */
-
 /* Memories definition */
 MEMORY
 {
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 128K
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 32K
+  FLASH    (rx)    : ORIGIN = 0x08008000,   LENGTH = 128K
 }
 
 /* Sections */
 SECTIONS
 {
-
   /* The startup code into "FLASH" Rom type memory */
   .isr_vector :
   {

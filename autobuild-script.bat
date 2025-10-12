@@ -1,10 +1,10 @@
 @echo off
 echo --------start--------
-rmdir /s /q BUILD 2>nul
-cmake -S . -B BUILD -G "MinGW Makefiles" -DCMAKE_TOOLCHAIN_FILE=./arm-toolchain.cmake
-cmake --build BUILD
+rmdir /s /q build 2>nul
+cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_TOOLCHAIN_FILE=./arm-toolchain.cmake
+cmake --build build
 
-@REM cmake --build BUILD --target flash_all  
+cmake --build BUILD --target flash_all  
 
 echo --------DONE--------
 

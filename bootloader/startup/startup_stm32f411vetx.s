@@ -57,8 +57,11 @@ defined in linker script */
 Reset_Handler:
   ldr   r0, =_estack
   mov   sp, r0          /* set stack pointer */
+/* Call the system initialization function (FPU,  vector table configuration) */
+  bl System_Init
+
 /* Call the clock system initialization function.*/
-  bl  SystemClockConfig
+  bl  SystemClock_Config
 
 /* Copy the data segment initializers from flash to SRAM */
   ldr r0, =_sdata
@@ -96,7 +99,7 @@ LoopFillZerobss:
   bl __libc_init_array
 /* Call the application's entry point.*/
 
-  bl main
+  bl boot_main
 
 LoopForever:
   b LoopForever
