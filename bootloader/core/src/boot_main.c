@@ -1,11 +1,13 @@
 #include "boot_main.h"
 
-#define APP_FLASH_ADDR  (0x08010000UL)
+// #define APP_FLASH_ADDR  (0x08010000UL) (bank2 use for backup)
+#define APP_FLASH_ADDR  (0x08008000UL)
 #define APP_MSP         (*(volatile uint32_t *)(APP_FLASH_ADDR + 0x0))
 #define APP_ENTRY       (*(volatile uint32_t *)(APP_FLASH_ADDR + 0x04))
 
 extern uint32_t SystemCoreClock;
 extern void SystemCoreClock_DeInit(void);
+extern void NVIC_Disable_ISR(void);
 static uint8_t tx_buf[UART_TX_BUFFER_SIZE];
 static uint8_t rx_buf[UART_RX_BUFFER_SIZE];
 typedef void(*func_ptr)(void);
@@ -35,9 +37,14 @@ void jump_to_app() {
     UART_SendData((const uint8_t *)"Jumping to application\r\n",35);
     delay_ms(10);
 
-    func_ptr app_entry = (func_ptr)APP_ENTRY;
-    // Call reset hanlder of application
+    // disable all interrupts
+    NVIC_Disable_ISR(); 
+    // set MSP
+    // __asm volatile("msr msp, %0" : : "r" (APP_MSP) : ); base on reset handler set MSP or not
+    // RCC deinit
     SystemCoreClock_DeInit();
+    // Call reset hanlder of application
+    func_ptr app_entry = (func_ptr)APP_ENTRY;
     app_entry();
 }
 

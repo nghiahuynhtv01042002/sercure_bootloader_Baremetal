@@ -20,3 +20,15 @@ add_custom_target(flash_all
     COMMENT Flashing Bootloader and Application to STM32...
     VERBATIM
 )
+
+add_custom_target(flash_app
+    COMMAND ${FLASH_TOOL} -c port=SWD -d ${APP_BIN} ${APP_ADDRESS} -rst
+    COMMENT Flashing Application to STM32...
+    VERBATIM
+)
+
+add_custom_target(flash_boot
+    COMMAND ${FLASH_TOOL} -c port=SWD -d-d ${BOOT_BIN} ${BOOT_ADDRESS} -rst
+    COMMENT Flashing Bootloader to STM32...
+    VERBATIM
+)

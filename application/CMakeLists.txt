@@ -44,50 +44,27 @@ add_compile_options(${MCU_FLAGS} ${COMMON_FLAGS} ${OPTIMIZE_FLAGS})
 # Apply the flags to every compile command
 add_compile_options(${MCU_FLAGS} ${COMMON_FLAGS} ${OPTIMIZE_FLAGS})
 
-# Build‑type‑specific optimiser/debug switches
-set(CMAKE_C_FLAGS_DEBUG   -g3 -O0 -DDEBUG)
-set(CMAKE_C_FLAGS_RELEASE -O3 -DNDEBUG)
-
 # -----------------------------------------------------------------------------
-#  Pre‑processor symbols (HAL, CMSIS, CMSIS‑DSP)
+#  Pre‑processor symbols
 # -----------------------------------------------------------------------------
 add_compile_definitions(
-    STM32F411xE
-    USE_HAL_DRIVER
-    ARM_MATH_CM4
-    ARM_MATH_MATRIX_CHECK
-    ARM_MATH_ROUNDING
-    # __FPU_PRESENT=1
+    __FPU_PRESENT=1
+    __FPU_USED=1
 )
 
 # -----------------------------------------------------------------------------
-#  Include directories (o
+#  Include directories 
 # -----------------------------------------------------------------------------
-## MANUAL INCLUDING HEADER DIR
-# include_directories(
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32F4xx/Include
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
-#     ${CMAKE_CURRENT_SOURCE_DIR}/USB_DEVICE/App
-#     ${CMAKE_CURRENT_SOURCE_DIR}/USB_DEVICE/Target
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/STM32_USB_Device_Library/Core/Inc
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
-# )
-
-## AUTOMATION INCLUDING HEADER DIR
 
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS 
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
 )
-
 set(INCLUDE_DIRS )
 foreach(header ${HEADERS})
     get_filename_component(header_dir ${header} DIRECTORY )
     list(APPEND INCLUDE_DIRS ${header_dir})
 endforeach()
-
+# Remove duplicate path
 list(REMOVE_DUPLICATES INCLUDE_DIRS)
 
 include_directories(
@@ -96,13 +73,6 @@ include_directories(
 # -----------------------------------------------------------------------------
 #  Source files (C) 
 # -----------------------------------------------------------------------------
-# file(GLOB_RECURSE SOURCES
-#     Core/Src/*.c
-#     Drivers/STM32F4xx_HAL_Driver/Src/*.c
-#     Middlewares/ST/STM32_USB_Device_Library/Core/Src/*.c
-#     Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/*.c
-#     USB_DEVICE/App/*.c
-#     USB_DEVICE/Target/*.c)
 
 file(GLOB_RECURSE ALL_C_FILES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.c
@@ -139,7 +109,7 @@ endif()
 # -----------------------------------------------------------------------------
 #  Linker script — adjust name if you rename the .ld file
 # -----------------------------------------------------------------------------
-set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32F411VETX_FLASH.ld)
+file(GLOB_RECURSE LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/*_FLASH.ld)
 if(NOT EXISTS ${LINKER_SCRIPT})
     message(FATAL_ERROR "Linker script not found: ${LINKER_SCRIPT}")
 endif()
