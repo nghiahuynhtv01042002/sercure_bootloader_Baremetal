@@ -53,8 +53,8 @@ void UART_Interrupt_SendData(const uint8_t *buffer, uint16_t length) {
     }
 }
 
-uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *app_buffer, uint16_t max_length) {
-    if (app_buffer == NULL || max_length == 0 ) return 0;
+uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *buffer, uint16_t max_length) {
+    if (buffer == NULL || max_length == 0 ) return 0;
 
     uint16_t current_ndtr = DMA1_S5NDTR;
     uint16_t current_pos = uart_cfg->rx_buffer_size - current_ndtr;
@@ -71,7 +71,7 @@ uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *app_buffer, uint
     uint16_t count = 0;
 
     while (count < to_read) {
-        app_buffer[count++] = uart_cfg->rx_buffer[dma_rx_last_pos];
+        buffer[count++] = uart_cfg->rx_buffer[dma_rx_last_pos];
         dma_rx_last_pos = (dma_rx_last_pos + 1) % uart_cfg->rx_buffer_size;
     }
     return count;
@@ -103,6 +103,6 @@ void UART_DMA_SendData(const uint8_t *data, uint16_t length) {
 int __io_putchar(int ch)
 {
     uint8_t c = (uint8_t)ch;
-    UART_SendData(&c, 1);
+    UART_SendData((NULL),&c, 1);
     return ch;
 }

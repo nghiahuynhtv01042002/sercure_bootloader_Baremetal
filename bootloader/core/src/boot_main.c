@@ -19,14 +19,13 @@ void uart_config(UART_Config_t *uart_cfg) {
     uart_cfg->rx_buffer = rx_buf;
     uart_cfg->tx_buffer_size = UART_TX_BUFFER_SIZE;
     uart_cfg->rx_buffer_size = UART_RX_BUFFER_SIZE;
-    UART_Init(uart_cfg);
-
+    // UART_Init(uart_cfg);
 }
 
-void jump_to_app() {
-    UART_SendData((const uint8_t *)"Booting ...\r\n",13);
+void enter_app(boot_mode_config_t *boot_cfg) {
+    boot_cfg->comm_if->send(boot_cfg->comm_if->comm_cfg,(const uint8_t *)"Booting ...\r\n",13);
     delay_ms(10);
-    UART_SendData((const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n",46);
+    boot_cfg->comm_if->send(boot_cfg->comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n",46);
     delay_ms(10);
 
     uint8_t count = 0;    
@@ -34,13 +33,13 @@ void jump_to_app() {
         delay_ms(1000);
     }
 
-    UART_SendData((const uint8_t *)"Jumping to application\r\n",35);
+    boot_cfg->comm_if->send(boot_cfg->comm_if->comm_cfg,(const uint8_t *)"Jumping to application\r\n",35);
     delay_ms(10);
 
     // disable all interrupts
     NVIC_Disable_ISR(); 
     // set MSP
-    // __asm volatile("msr msp, %0" : : "r" (APP_MSP) : ); base on reset handler set MSP or not
+    __asm volatile("msr msp, %0" : : "r" (APP_MSP) : ); //base on reset handler set MSP or not
     // RCC deinit
     SystemCoreClock_DeInit();
     // Call reset hanlder of application
@@ -48,9 +47,32 @@ void jump_to_app() {
     app_entry();
 }
 
-int boot_main(void) {
-    UART_Config_t uart_cfg;
+int8_t boot_config(boot_mode_config_t* boot_cfg) {
+    if (!boot_cfg) return -1;
+    static UART_Config_t uart_cfg;
     uart_config(&uart_cfg);
-    jump_to_app();
+
+    static comm_interface_t uart_driver = {
+        .comm_cfg = &uart_cfg,
+        .init = (void (*)(void *))UART_Init,
+        .recv = (uint16_t (*)(void *, uint8_t *, uint16_t))UART_ReceiveData,
+        .send = (void (*)(void *, const uint8_t *, uint16_t))UART_SendData
+    };
+
+    boot_cfg->secure_mode = SECURE_NONE;
+    boot_cfg->comm_if = &uart_driver;
+    return 0;
+}
+
+int8_t boot_init(boot_mode_config_t* boot_cfg) {
+    if (!boot_cfg) return -1;
+    boot_cfg->comm_if->init(boot_cfg->comm_if->comm_cfg);
+    return 0;
+}
+int boot_main(void) {
+    boot_mode_config_t boot_cfg;
+    boot_config(&boot_cfg);
+    boot_init(&boot_cfg);
+    enter_app(&boot_cfg);
     return 0;
 }

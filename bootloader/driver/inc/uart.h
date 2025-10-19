@@ -150,7 +150,7 @@ uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *app_buffer, uint
 
 // Abstract Function prototypes
 void UART_Init(UART_Config_t *config);
-void UART_SendData(const uint8_t *data, uint16_t length);
+void UART_SendData(UART_Config_t* uart_cfg,const uint8_t *data, uint16_t length);
 uint16_t UART_ReceiveData(UART_Config_t* uart_cfg, uint8_t *data, uint16_t max_length);
 
 // Global variables
