@@ -312,10 +312,8 @@ uint16_t UART_DMA_ReceiveData_weak(UART_Config_t* uart_cfg, uint8_t *buffer, uin
     return count;
 }
 // Abstraction for UART_ReceiveData
-// to match the abtract interface void (*send)(cfg, data, length)
 void UART_SendData(UART_Config_t* uart_cfg,const uint8_t *data, uint16_t length) {
-    (void)(uart_cfg);  // UNUSE
-    switch(current_uart_mode) {
+    switch(uart_cfg->mode) {
         case UART_MODE_NORMAL:
             UART_Normal_SendData(data, length) ;
             break;
@@ -331,7 +329,7 @@ void UART_SendData(UART_Config_t* uart_cfg,const uint8_t *data, uint16_t length)
 // Abstraction for UART_ReceiveData
 uint16_t UART_ReceiveData(UART_Config_t* uart_cfg, uint8_t *data, uint16_t max_length) {
     uint16_t length = 0;
-    switch(current_uart_mode) {
+    switch(uart_cfg->mode) {
         case UART_MODE_NORMAL:
             length = UART_Normal_ReceiveData(data, UART_RX_BUFFER_SIZE);
             break;
