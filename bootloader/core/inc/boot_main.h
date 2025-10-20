@@ -7,7 +7,7 @@
 #include "nvic.h"
 #include "uart.h"
 #include "sysinit.h"
-
+#include "tim2.h"
 typedef enum {
     SECURE_NONE = 0,
     SECURE_RSA2048,
@@ -30,6 +30,6 @@ typedef struct {
 typedef struct {
     secure_mode_t secure_mode;
     comm_interface_t *comm_if; // abstract interface (UART/SPI/USB)
-} boot_mode_config_t;
+} boot_handle_t;
 
 #endif // BOOT_MAIN_H

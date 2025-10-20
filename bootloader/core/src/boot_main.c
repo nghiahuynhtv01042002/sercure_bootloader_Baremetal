@@ -21,18 +21,8 @@ void uart_config(UART_Config_t *uart_cfg) {
     uart_cfg->rx_buffer_size = UART_RX_BUFFER_SIZE;
 }
 
-void enter_app(boot_mode_config_t *boot_cfg) {
-    boot_cfg->comm_if->send(boot_cfg->comm_if->comm_cfg,(const uint8_t *)"Booting ...\r\n",13);
-    delay_ms(10);
-    boot_cfg->comm_if->send(boot_cfg->comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n",46);
-    delay_ms(10);
-
-    uint8_t count = 0;    
-    while(count++ < 3) {
-        delay_ms(1000);
-    }
-
-    boot_cfg->comm_if->send(boot_cfg->comm_if->comm_cfg,(const uint8_t *)"Jumping to application\r\n",35);
+void enter_app(boot_handle_t *boot_ctx) {
+    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,(const uint8_t *)"Jumping to application\r\n",35);
     delay_ms(10);
 
     // disable all interrupts
@@ -46,8 +36,8 @@ void enter_app(boot_mode_config_t *boot_cfg) {
     app_entry();
 }
 
-int8_t boot_config(boot_mode_config_t* boot_cfg) {
-    if (!boot_cfg) return -1;
+int8_t boot_config(boot_handle_t* boot_ctx) {
+    if (!boot_ctx) return -1;
     static UART_Config_t uart_cfg;
     uart_config(&uart_cfg);
 
@@ -58,29 +48,41 @@ int8_t boot_config(boot_mode_config_t* boot_cfg) {
         .send = (void (*)(void *, const uint8_t *, uint16_t))UART_SendData
     };
 
-    boot_cfg->secure_mode = SECURE_NONE;
-    boot_cfg->comm_if = &uart_driver;
+    boot_ctx->secure_mode = SECURE_NONE;
+    boot_ctx->comm_if = &uart_driver;
     return 0;
 }
 
-int8_t boot_init(boot_mode_config_t* boot_cfg) {
-    if (!boot_cfg) return -1;
-    boot_cfg->comm_if->init(boot_cfg->comm_if->comm_cfg);
+int8_t boot_init(boot_handle_t* boot_ctx) {
+    if (!boot_ctx) return -1;
+    boot_ctx->comm_if->init(boot_ctx->comm_if->comm_cfg);
     return 0;
 }
 int boot_main(void) {
-    boot_mode_config_t boot_cfg;
-    boot_config(&boot_cfg);
-    boot_init(&boot_cfg);
+    boot_handle_t boot_ctx;
+    boot_config(&boot_ctx);
+    boot_init(&boot_ctx);
+    TIM2_Init();
+    // set timers event    
+    TIM2_SetTime(3000);
+    TIM2_Start();
     static uint8_t fw_chunk[11];
-    // enter_app(&boot_cfg);
     uint16_t recv_length = 0;
-    boot_cfg.comm_if->send(boot_cfg.comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n", 46);
-    while (1) {
-        recv_length = boot_cfg.comm_if->recv(boot_cfg.comm_if->comm_cfg,fw_chunk,sizeof(fw_chunk));
+    int e_flag = 0;
+    boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n", 46);
+    while (!TIM2_IsTimeElapsed()) {
+        recv_length = boot_ctx.comm_if->recv(boot_ctx.comm_if->comm_cfg,fw_chunk,sizeof(fw_chunk));
         if (recv_length > 0) {
-            boot_cfg.comm_if->send(boot_cfg.comm_if->comm_cfg,fw_chunk,recv_length);
+            boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,fw_chunk,recv_length);
+            // set event flag
+            e_flag = 1;
+            break;
         }
+    }
+    if(e_flag ==1 ){
+        boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,(const uint8_t *)"Firmware update.\r\n", 46);
+    } else {
+        enter_app(&boot_ctx);
     }
     return 0;
 }

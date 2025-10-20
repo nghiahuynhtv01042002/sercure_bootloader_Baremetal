@@ -9,6 +9,7 @@
 #define RCC_CFGR      (*(volatile uint32_t *)(RCC_BASE + 0x08))
 #define RCC_AHB1RSTR  (*(volatile uint32_t *)(RCC_BASE + 0x10))
 #define RCC_AHB2RSTR  (*(volatile uint32_t *)(RCC_BASE + 0x14))
+#define RCC_APB1RSTR  (*(volatile uint32_t *)(RCC_BASE + 0x20))
 #define RCC_AHB1ENR   (*(volatile uint32_t *)(RCC_BASE + 0x30))
 #define RCC_AHB2ENR   (*(volatile uint32_t *)(RCC_BASE + 0x34))
 #define RCC_APB1ENR   (*(volatile uint32_t *)(RCC_BASE + 0x40))
@@ -43,8 +44,9 @@
 #define RCC_AHB1ENR_GPIOA_EN (1 << 0)
 #define RCC_AHB1ENR_GPIOC_EN (1 << 2)
 #define RCC_AHB1ENR_GPIOD_EN (1 << 3)
-// USB FS enable bit 
-#define RCC_AHB2ENR_OTGFSEN (1 << 7)
+// Timer2 enable/reset bits
+#define RCC_APB1ENR_TIM2EN      (1U << 0)
+#define RCC_APB1RSTR_TIM2RST    (1U << 0)
 // FLASH configuration
 #define FLASH_BASE    (0x40023C00)
 #define FLASH_ACR     (*(volatile uint32_t *)(FLASH_BASE + 0x00))
