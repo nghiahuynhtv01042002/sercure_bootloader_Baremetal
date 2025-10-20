@@ -19,7 +19,6 @@ void uart_config(UART_Config_t *uart_cfg) {
     uart_cfg->rx_buffer = rx_buf;
     uart_cfg->tx_buffer_size = UART_TX_BUFFER_SIZE;
     uart_cfg->rx_buffer_size = UART_RX_BUFFER_SIZE;
-    // UART_Init(uart_cfg);
 }
 
 void enter_app(boot_mode_config_t *boot_cfg) {
@@ -73,6 +72,15 @@ int boot_main(void) {
     boot_mode_config_t boot_cfg;
     boot_config(&boot_cfg);
     boot_init(&boot_cfg);
-    enter_app(&boot_cfg);
+    static uint8_t fw_chunk[11];
+    // enter_app(&boot_cfg);
+    uint16_t recv_length = 0;
+    boot_cfg.comm_if->send(boot_cfg.comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n", 46);
+    while (1) {
+        recv_length = boot_cfg.comm_if->recv(boot_cfg.comm_if->comm_cfg,fw_chunk,sizeof(fw_chunk));
+        if (recv_length > 0) {
+            boot_cfg.comm_if->send(boot_cfg.comm_if->comm_cfg,fw_chunk,recv_length);
+        }
+    }
     return 0;
 }
