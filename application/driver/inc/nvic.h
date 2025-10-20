@@ -26,7 +26,7 @@
 // Priority Register Base
 #define NVIC_IPR_BASE       (NVIC_BASE + 0x300)
 
-// IRQ Numbers for STM32F411
+// IRQ Numbers
 #define USART1_IRQn         37
 #define USART2_IRQn         38
 #define USART6_IRQn         71
@@ -34,7 +34,7 @@
 #define DMA1_Stream6_IRQn   17
 #define DMA2_Stream6_IRQn   69
 #define DMA2_Stream7_IRQn   70
-
+#define TIM2_IRQn           28
 // Function prototypes
 void NVIC_EnableIRQ(uint8_t IRQn);
 void NVIC_DisableIRQ(uint8_t IRQn);

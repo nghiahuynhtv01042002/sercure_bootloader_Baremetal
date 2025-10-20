@@ -16,8 +16,9 @@ void uart_config(UART_Config_t *uart_cfg) {
 int app_main(void) {
     UART_Config_t uart_cfg;
     uart_config(&uart_cfg);
-    printf("this is a test printf for app\n");
-    delay_ms(1000);
+    TIM2_Init();
+    RCC_AHB1ENR |= RCC_AHB1ENR_GPIOD_EN;
+    printf("App is runnnig....\n");
     printf("===end====\n");
 
     return 0;

@@ -7,6 +7,6 @@
 #include "nvic.h"
 #include "uart.h"
 #include "sysinit.h"
-
+#include "tim2.h"
 
 #endif // BOOT_MAIN_H
