@@ -1,5 +1,7 @@
 /* This file is used to override weak aliases defined in uart.h */
 #include "uart.h"
+#define USER_UART_DEFINE
+#ifdef USER_UART_DEFINE
 uint16_t UART_Normal_ReceiveData(uint8_t *buffer, uint16_t max_length) {
     uint16_t count = 0;
     while(count < max_length) {
@@ -98,7 +100,7 @@ void UART_DMA_SendData(const uint8_t *data, uint16_t length) {
     // Enable stream
     DMA1_S6CR |= DMA_SxCR_EN;
 }
-
+#endif
 // over write weak alias of __io_putchar
 int __io_putchar(int ch)
 {
