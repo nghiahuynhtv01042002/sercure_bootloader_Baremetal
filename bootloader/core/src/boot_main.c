@@ -63,24 +63,37 @@ int boot_main(void) {
     boot_config(&boot_ctx);
     boot_init(&boot_ctx);
     TIM2_Init();
-    // set timers event
     TIM2_SetTime(3000);
-    static uint8_t fw_chunk[11];
+    
+    static uint8_t fw_chunk[256];
+    uint16_t total_recv = 0;  
     uint16_t recv_length = 0;
     int e_flag = 0;
-    boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n", 46);
+    
+    boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n", 47);
     TIM2_Start();
+    
     while (!TIM2_IsTimeElapsed()) {
-        recv_length = boot_ctx.comm_if->recv(boot_ctx.comm_if->comm_cfg,fw_chunk,sizeof(fw_chunk));
+        recv_length = boot_ctx.comm_if->recv(boot_ctx.comm_if->comm_cfg,fw_chunk + total_recv, sizeof(fw_chunk) - total_recv);
         if (recv_length > 0) {
-            e_flag = 1;
-            break;
+            total_recv += recv_length;
+            // this is temp logic
+            if (fw_chunk[total_recv - 1] == '\n') {
+                e_flag = 1;
+                TIM2_Stop();
+                TIM2_ClearFlag();
+                NVIC_ClearPendingIRQ(TIM2_IRQn);
+                NVIC_DisableIRQ(TIM2_IRQn);
+                break;
+            }
         }
+        delay_ms(1);  
     }
-    if(e_flag ==1 ){
-        boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,fw_chunk,recv_length);
+    
+    if(e_flag == 1) {
+        boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg, fw_chunk, total_recv);
         delay_ms(10);
-        boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,(const uint8_t *)"Firmware update.\r\n", 18);
+        boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg, (const uint8_t *)"Firmware update.\r\n", 18);
     } else {
         enter_app(&boot_ctx);
     }

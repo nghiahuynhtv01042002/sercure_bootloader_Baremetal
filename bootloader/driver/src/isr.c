@@ -66,6 +66,7 @@ void DMA1_Stream5_IRQHandler(void) {
     // RX Transfer Complete interrupt 
     if(DMA1_LISR & (1 << 11)) {   // TCIF5
         DMA1_LIFCR |= (1 << 11);
+        dma_rx_overflow = true;
     }
     
     // Error interrupts
