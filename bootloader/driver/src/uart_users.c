@@ -46,7 +46,7 @@ void UART_Interrupt_SendData(const uint8_t *buffer, uint16_t length) {
         }
         uart_tx_buffer[uart_tx_head] = buffer[idx]; 
         uart_tx_head = next_head;
-         if(buffer[idx] == '\n') break;
+        if(buffer[idx] == '\n') break;
     }
     //  Enable TXEIE to send data
     if(!uart_tx_busy) {
@@ -55,8 +55,10 @@ void UART_Interrupt_SendData(const uint8_t *buffer, uint16_t length) {
     }
 }
 
-uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *buffer, uint16_t max_length) {
-    if (buffer == NULL || max_length == 0 ) return 0;
+uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *buffer, uint16_t max_length)
+{
+    if (buffer == NULL || max_length == 0)
+        return 0;
 
     uint16_t current_ndtr = DMA1_S5NDTR;
     uint16_t current_pos = uart_cfg->rx_buffer_size - current_ndtr;
@@ -65,8 +67,14 @@ uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *buffer, uint16_t
     if (current_pos >= dma_rx_last_pos) {
         available_data = current_pos - dma_rx_last_pos;
     } else {
+        // normal wrap-around
         available_data = (uart_cfg->rx_buffer_size - dma_rx_last_pos) + current_pos;
-        dma_rx_overflow = true;
+    }
+
+    // real overflow only if unread data > buffer size (should not happen)
+    if (available_data > uart_cfg->rx_buffer_size) {
+        dma_rx_is_full = true;
+        available_data = uart_cfg->rx_buffer_size;
     }
 
     uint16_t to_read = (available_data < max_length) ? available_data : max_length;
@@ -76,12 +84,13 @@ uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *buffer, uint16_t
         buffer[count++] = uart_cfg->rx_buffer[dma_rx_last_pos];
         dma_rx_last_pos = (dma_rx_last_pos + 1) % uart_cfg->rx_buffer_size;
     }
+
     return count;
 }
 void UART_DMA_SendData(const uint8_t *data, uint16_t length) {
     if (length == 0) return;
     
-    while(DMA1_S6CR & DMA_SxCR_EN) ;
+    while (DMA1_S6CR & DMA_SxCR_EN) ;
     
     // Clear transfer complete flag
     DMA1_HIFCR |= (1 << 21); // Clear TCIF6
@@ -102,9 +111,9 @@ void UART_DMA_SendData(const uint8_t *data, uint16_t length) {
 }
 #endif
 // over write weak alias of __io_putchar
-int __io_putchar(int ch)
-{
-    uint8_t c = (uint8_t)ch;
-    UART_SendData((NULL),&c, 1);
-    return ch;
-}
+// int __io_putchar(int ch)
+// {
+//     uint8_t c = (uint8_t)ch;
+//     UART_SendData(boot_ctx.comm_if->comm_cfg,&c, 1);
+//     return ch;
+// }

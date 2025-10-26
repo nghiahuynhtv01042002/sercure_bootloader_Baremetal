@@ -64,7 +64,7 @@ uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *app_buffer, uint
         available_data = current_pos - dma_rx_last_pos;
     } else {
         available_data = (uart_cfg->rx_buffer_size - dma_rx_last_pos) + current_pos;
-        dma_rx_overflow = true;
+        dma_rx_is_full = true;
     }
 
     uint16_t to_read = (available_data < max_length) ? available_data : max_length;

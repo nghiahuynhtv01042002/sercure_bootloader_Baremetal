@@ -175,7 +175,7 @@ void UART_DMA_Init(uint32_t baudrate, uint8_t *tx_buf, uint8_t *rx_buf, uint16_t
     // Initialize tracking variables
     dma_tx_done = false;
     dma_rx_last_pos = 0;
-    dma_rx_overflow = false;
+    dma_rx_is_full = false;
     
     // Enable DMA interrupts
     NVIC_SetPriority(DMA1_Stream5_IRQn, 2);
@@ -260,7 +260,7 @@ uint16_t UART_Interrupt_ReceiveData_weak(uint8_t *buffer, uint16_t max_length) {
 }
 // DMA 
 volatile bool dma_tx_done = false;
-volatile bool dma_rx_overflow = false;
+volatile bool dma_rx_is_full = false;
 volatile uint16_t dma_rx_last_pos = 0;
 
 // Weak alias for UART_DMA_SendData
@@ -299,7 +299,7 @@ uint16_t UART_DMA_ReceiveData_weak(UART_Config_t* uart_cfg, uint8_t *buffer, uin
         available_data = current_pos - dma_rx_last_pos;
     } else {
         available_data = (uart_cfg->rx_buffer_size - dma_rx_last_pos) + current_pos;
-        dma_rx_overflow = true;
+        dma_rx_is_full = true;
     }
 
     uint16_t to_read = (available_data < max_length) ? available_data : max_length;
@@ -346,6 +346,6 @@ uint16_t UART_ReceiveData(UART_Config_t* uart_cfg, uint8_t *data, uint16_t max_l
 void UART_DMA_ClearRxBuffer(void) {
     uint16_t current_ndtr = DMA1_S5NDTR;
     dma_rx_last_pos = UART_RX_BUFFER_SIZE - current_ndtr;
-    dma_rx_overflow = false;
+    dma_rx_is_full = false;
 }
 

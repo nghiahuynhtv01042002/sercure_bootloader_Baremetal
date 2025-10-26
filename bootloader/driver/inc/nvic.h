@@ -41,5 +41,7 @@ void NVIC_DisableIRQ(uint8_t IRQn);
 void NVIC_SetPriority(uint8_t IRQn, uint8_t priority);
 void NVIC_SetPendingIRQ(uint8_t IRQn);
 void NVIC_ClearPendingIRQ(uint8_t IRQn);
+void NVIC_Enable_ISR(void);
+void NVIC_Disable_ISR(void);
 
 #endif /* NVIC_H */

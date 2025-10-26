@@ -11,7 +11,19 @@ extern void NVIC_Disable_ISR(void);
 static uint8_t tx_buf[UART_TX_BUFFER_SIZE];
 static uint8_t rx_buf[UART_RX_BUFFER_SIZE];
 typedef void(*func_ptr)(void);
+// Global boot context pointer for __io_putchar / printf
+static boot_handle_t *g_boot_ctx = NULL;
 
+/* for printf */
+int __io_putchar(int ch)
+{
+    uint8_t c = (uint8_t)ch;
+    if (g_boot_ctx && g_boot_ctx->comm_if && g_boot_ctx->comm_if->comm_cfg) {
+        // use comm interface send
+        g_boot_ctx->comm_if->send(g_boot_ctx->comm_if->comm_cfg, &c, 1);
+    } 
+    return ch;
+}
 void uart_config(UART_Config_t *uart_cfg) {
     uart_cfg->mode = UART_MODE_DMA;
     uart_cfg->baudrate = 115200;
@@ -60,6 +72,7 @@ int8_t boot_init(boot_handle_t* boot_ctx) {
 }
 int boot_main(void) {
     boot_handle_t boot_ctx;
+    g_boot_ctx = &boot_ctx; // use for printf
     boot_config(&boot_ctx);
     boot_init(&boot_ctx);
     TIM2_Init();
@@ -69,10 +82,9 @@ int boot_main(void) {
     uint16_t total_recv = 0;  
     uint16_t recv_length = 0;
     int e_flag = 0;
-    
+
     boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n", 47);
     TIM2_Start();
-    
     while (!TIM2_IsTimeElapsed()) {
         recv_length = boot_ctx.comm_if->recv(boot_ctx.comm_if->comm_cfg,fw_chunk + total_recv, sizeof(fw_chunk) - total_recv);
         if (recv_length > 0) {

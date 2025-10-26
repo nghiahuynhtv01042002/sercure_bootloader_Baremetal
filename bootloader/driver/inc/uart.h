@@ -129,8 +129,8 @@ typedef struct {
 #define RCC_APB1ENR_USART2EN (1 << 17)
 
 // Buffer sizes
-#define UART_TX_BUFFER_SIZE 256
-#define UART_RX_BUFFER_SIZE 256
+#define UART_TX_BUFFER_SIZE (256)
+#define UART_RX_BUFFER_SIZE (256)
 
 // Initial funtion
 void UART_Normal_Init(uint32_t baudrate);
@@ -162,7 +162,7 @@ extern volatile uint16_t uart_rx_head, uart_rx_tail;
 extern volatile bool uart_tx_busy;
 
 extern volatile bool dma_tx_done;
-extern volatile bool dma_rx_overflow;
+extern volatile bool dma_rx_is_full;
 extern volatile uint16_t dma_rx_last_pos;
 
 

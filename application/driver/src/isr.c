@@ -59,25 +59,25 @@ void DMA1_Stream6_IRQHandler(void) {
 
 void DMA1_Stream5_IRQHandler(void) {
     // RX Half Transfer interrupt
-    if(DMA1_LISR & (1 << 10)) {   // HTIF5
-        DMA1_LIFCR |= (1 << 10);
+    if(DMA1_HISR & (1 << 10)) {   // HTIF5
+        DMA1_HIFCR |= (1 << 10);
     }
     
     // RX Transfer Complete interrupt 
-    if(DMA1_LISR & (1 << 11)) {   // TCIF5
-        DMA1_LIFCR |= (1 << 11);
+    if(DMA1_HISR & (1 << 11)) {   // TCIF5
+        DMA1_HIFCR |= (1 << 11);
+        dma_rx_is_full = true;
     }
-    
     // Error interrupts
-    if(DMA1_LISR & (1 << 6)) {    // FEIF5
-        DMA1_LIFCR |= (1 << 6);
+    if(DMA1_HISR & (1 << 6)) {    // FEIF5
+        DMA1_HIFCR |= (1 << 6);
     }
     
-    if(DMA1_LISR & (1 << 8)) {    // DMEIF5
-        DMA1_LIFCR |= (1 << 8);
+    if(DMA1_HISR & (1 << 8)) {    // DMEIF5
+        DMA1_HIFCR |= (1 << 8);
     }
     
-    if(DMA1_LISR & (1 << 9)) {    // TEIF5
-        DMA1_LIFCR |= (1 << 9);
+    if(DMA1_HISR & (1 << 9)) {    // TEIF5
+        DMA1_HIFCR |= (1 << 9);
     }
 }
