@@ -8,12 +8,12 @@
 extern uint32_t SystemCoreClock;
 extern void SystemCoreClock_DeInit(void);
 extern void NVIC_Disable_ISR(void);
-static uint8_t tx_buf[UART_TX_BUFFER_SIZE];
-static uint8_t rx_buf[UART_RX_BUFFER_SIZE];
+extern int8_t boot_config(boot_handle_t* boot_ctx);
+extern int8_t boot_init(boot_handle_t* boot_ctx);
+
 typedef void(*func_ptr)(void);
 // Global boot context pointer for __io_putchar / printf
 static boot_handle_t *g_boot_ctx = NULL;
-
 /* for printf */
 int __io_putchar(int ch)
 {
@@ -23,14 +23,6 @@ int __io_putchar(int ch)
         g_boot_ctx->comm_if->send(g_boot_ctx->comm_if->comm_cfg, &c, 1);
     } 
     return ch;
-}
-void uart_config(UART_Config_t *uart_cfg) {
-    uart_cfg->mode = UART_MODE_DMA;
-    uart_cfg->baudrate = 115200;
-    uart_cfg->tx_buffer = tx_buf;
-    uart_cfg->rx_buffer = rx_buf;
-    uart_cfg->tx_buffer_size = UART_TX_BUFFER_SIZE;
-    uart_cfg->rx_buffer_size = UART_RX_BUFFER_SIZE;
 }
 
 void enter_app(boot_handle_t *boot_ctx) {
@@ -48,28 +40,7 @@ void enter_app(boot_handle_t *boot_ctx) {
     app_entry();
 }
 
-int8_t boot_config(boot_handle_t* boot_ctx) {
-    if (!boot_ctx) return -1;
-    static UART_Config_t uart_cfg;
-    uart_config(&uart_cfg);
 
-    static comm_interface_t uart_driver = {
-        .comm_cfg = &uart_cfg,
-        .init = (void (*)(void *))UART_Init,
-        .recv = (uint16_t (*)(void *, uint8_t *, uint16_t))UART_ReceiveData,
-        .send = (void (*)(void *, const uint8_t *, uint16_t))UART_SendData
-    };
-
-    boot_ctx->secure_mode = SECURE_NONE;
-    boot_ctx->comm_if = &uart_driver;
-    return 0;
-}
-
-int8_t boot_init(boot_handle_t* boot_ctx) {
-    if (!boot_ctx) return -1;
-    boot_ctx->comm_if->init(boot_ctx->comm_if->comm_cfg);
-    return 0;
-}
 int boot_main(void) {
     boot_handle_t boot_ctx;
     g_boot_ctx = &boot_ctx; // use for printf

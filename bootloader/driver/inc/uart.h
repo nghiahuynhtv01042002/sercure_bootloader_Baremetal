@@ -7,22 +7,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-// UART Mode definitions
-typedef enum {
-    UART_MODE_NORMAL = 0,
-    UART_MODE_DMA,
-    UART_MODE_INTERRUPT
-} UART_Mode_t;
-
-// UART Configuration
-typedef struct {
-    uint32_t baudrate;
-    UART_Mode_t mode;
-    uint8_t *tx_buffer;
-    uint8_t *rx_buffer;
-    uint16_t tx_buffer_size;
-    uint16_t rx_buffer_size;
-} UART_Config_t;
 
 // USART2 Base Address (PA2-TX, PA3-RX)
 #define USART2_BASE         (0x40004400)
@@ -132,10 +116,27 @@ typedef struct {
 #define UART_TX_BUFFER_SIZE (256)
 #define UART_RX_BUFFER_SIZE (256)
 
+// UART Mode definitions
+typedef enum {
+    UART_MODE_NORMAL = 0,
+    UART_MODE_DMA,
+    UART_MODE_INTERRUPT
+} UART_Mode_t;
+
+// UART Configuration
+typedef struct {
+    uint32_t baudrate;
+    UART_Mode_t mode;
+    volatile uint8_t *tx_buffer;
+    volatile uint8_t *rx_buffer;
+    uint16_t tx_buffer_size;
+    uint16_t rx_buffer_size;
+} UART_Config_t;
+
 // Initial funtion
 void UART_Normal_Init(uint32_t baudrate);
-void UART_DMA_Init(uint32_t baudrate, uint8_t *tx_buf, uint8_t *rx_buf, uint16_t tx_size, uint16_t rx_size);
-void UART_Interrupt_Init(uint32_t baudrate, uint8_t *tx_buf, uint8_t *rx_buf, uint16_t tx_size, uint16_t rx_size);
+void UART_DMA_Init(uint32_t baudrate, volatile uint8_t *tx_buf, volatile uint8_t *rx_buf, uint16_t tx_size, uint16_t rx_size);
+void UART_Interrupt_Init(uint32_t baudrate, volatile uint8_t *tx_buf, volatile uint8_t *rx_buf, uint16_t tx_size, uint16_t rx_size);
 
 // Normal specific functions
 extern void UART_Normal_SendData(const uint8_t *buffer, uint16_t length);
@@ -152,7 +153,13 @@ uint16_t UART_DMA_ReceiveData(UART_Config_t* uart_cfg, uint8_t *app_buffer, uint
 void UART_Init(UART_Config_t *config);
 void UART_SendData(UART_Config_t* uart_cfg,const uint8_t *data, uint16_t length);
 uint16_t UART_ReceiveData(UART_Config_t* uart_cfg, uint8_t *data, uint16_t max_length);
+void uart_config(UART_Config_t *uart_cfg) ;
 
+void uart_set_config(UART_Config_t *uart_cfg,
+                     UART_Mode_t mode,
+                     uint32_t baudrate, 
+                     uint8_t *tx_buf, uint8_t *rx_buf,
+                     uint16_t tx_size, uint16_t rx_size);
 // Global variables
 extern volatile UART_Mode_t current_uart_mode;
 extern volatile uint8_t uart_tx_buffer[UART_TX_BUFFER_SIZE];

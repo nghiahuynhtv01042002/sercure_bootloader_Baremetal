@@ -86,7 +86,7 @@ void UART_Normal_Init(uint32_t baudrate) {
 }
 
 // Interrupt mode initialization
-void UART_Interrupt_Init(uint32_t baudrate, uint8_t *tx_buf, uint8_t *rx_buf, uint16_t tx_size, uint16_t rx_size) {
+void UART_Interrupt_Init(uint32_t baudrate, volatile uint8_t *tx_buf, volatile uint8_t *rx_buf, uint16_t tx_size, uint16_t rx_size) {
     // Initialize GPIO
     UART_GPIO_Init();
     
@@ -122,7 +122,7 @@ void UART_Interrupt_Init(uint32_t baudrate, uint8_t *tx_buf, uint8_t *rx_buf, ui
     USART2_CR1 |= USART_CR1_UE;
 }
 
-void UART_DMA_Init(uint32_t baudrate, uint8_t *tx_buf, uint8_t *rx_buf, uint16_t tx_size, uint16_t rx_size) {
+void UART_DMA_Init(uint32_t baudrate, volatile uint8_t *tx_buf, volatile uint8_t *rx_buf, uint16_t tx_size, uint16_t rx_size) {
     // Initialize GPIO
     UART_GPIO_Init();
     
@@ -349,3 +349,27 @@ void UART_DMA_ClearRxBuffer(void) {
     dma_rx_is_full = false;
 }
 
+void uart_config(UART_Config_t *uart_cfg) {
+    uart_cfg->mode = UART_MODE_DMA;
+    uart_cfg->baudrate = 115200;
+    uart_cfg->tx_buffer = (volatile uint8_t *)uart_tx_buffer;
+    uart_cfg->rx_buffer = (volatile uint8_t *)uart_rx_buffer;
+    uart_cfg->tx_buffer_size = UART_TX_BUFFER_SIZE;
+    uart_cfg->rx_buffer_size = UART_RX_BUFFER_SIZE;
+}
+
+void uart_set_config(UART_Config_t *uart_cfg,
+                     UART_Mode_t mode,
+                     uint32_t baudrate, 
+                     uint8_t *tx_buf, uint8_t *rx_buf,
+                     uint16_t tx_size, uint16_t rx_size)
+{
+    if (uart_cfg == NULL) return; // tránh trỏ NULL
+
+    uart_cfg->mode            = mode;
+    uart_cfg->baudrate        = baudrate;
+    uart_cfg->tx_buffer       = tx_buf;
+    uart_cfg->rx_buffer       = rx_buf;
+    uart_cfg->tx_buffer_size  = tx_size;
+    uart_cfg->rx_buffer_size  = rx_size;
+}

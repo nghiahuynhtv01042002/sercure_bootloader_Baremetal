@@ -130,7 +130,7 @@ typedef struct {
 
 // Buffer sizes
 #define UART_TX_BUFFER_SIZE (256)
-#define UART_RX_BUFFER_SIZE (64)
+#define UART_RX_BUFFER_SIZE (256)
 
 // Initial funtion
 void UART_Normal_Init(uint32_t baudrate);
