@@ -26,11 +26,11 @@ int receive_firmware(const char *com, const char *output_file) {
     }
     printf(">> Start command received!\n");
 
-    // Gửi ACK
+    // send back ACK
     uint8_t ack = 0xAA;
     serial_write(&serial, &ack, 1);
 
-    // Nhận file size (4 byte)
+    // recieve 4 bytes file size
     uint32_t file_size = 0;
     if (serial_read(&serial, (uint8_t*)&file_size, 4) != 4) {
         printf("Error: cannot read file size\n");

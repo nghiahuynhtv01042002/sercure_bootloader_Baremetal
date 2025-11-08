@@ -17,13 +17,11 @@ int send_firmware(const char *com, const char *filepath) {
         return -1;
     }
 
-    // Lấy kích thước file
     fseek(fw, 0, SEEK_END);
     uint32_t file_size = ftell(fw);
     fseek(fw, 0, SEEK_SET);
     printf("Sending firmware size = %u bytes\n", file_size);
 
-    // Gửi start command
     uint8_t start_cmd = 0x55;
     serial_write(&serial, &start_cmd, 1);
 
@@ -35,7 +33,6 @@ int send_firmware(const char *com, const char *filepath) {
         return -1;
     }
 
-    // Gửi file size (4 bytes, little endian)
     serial_write(&serial, (uint8_t *)&file_size, sizeof(file_size));
 
     uint8_t buffer[CHUNK_SIZE];

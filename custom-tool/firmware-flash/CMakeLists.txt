@@ -16,9 +16,7 @@ foreach(_header ${HEADER_FILES})
 endforeach()
 list(REMOVE_DUPLICATES INCLUDE_DIRS)
 include_directories(${INCLUDE_DIRS})
-
-
-
+# SOURCE
 file(GLOB_RECURSE ALL_C_FILES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
 )
@@ -33,7 +31,6 @@ foreach(c_file ${ALL_C_FILES})
 endforeach()
 
 add_executable(firmware_flash ${SRC_FILES})
-
 
 if (WIN32)
     target_link_libraries(firmware_flash

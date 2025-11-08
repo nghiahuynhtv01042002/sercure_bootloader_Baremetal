@@ -1,7 +1,7 @@
 #ifndef SYS_CLOCKS_H
 #define SYS_CLOCKS_H
 #include <stdint.h>
-
+#include <flash.h>
 // RCC Register definitions
 #define RCC_BASE      (0x40023800)
 #define RCC_CR        (*(volatile uint32_t *)(RCC_BASE + 0x00))
@@ -47,10 +47,7 @@
 // Timer2 enable/reset bits
 #define RCC_APB1ENR_TIM2EN      (1U << 0)
 #define RCC_APB1RSTR_TIM2RST    (1U << 0)
-// FLASH configuration
-#define FLASH_BASE    (0x40023C00)
-#define FLASH_ACR     (*(volatile uint32_t *)(FLASH_BASE + 0x00))
-#define FLASH_ACR_LATENCY_3WS (0x03) 
+
 extern uint32_t SystemCoreClock;
 extern void SystemClock_Config(void);
 extern void Config_MCO(void);
