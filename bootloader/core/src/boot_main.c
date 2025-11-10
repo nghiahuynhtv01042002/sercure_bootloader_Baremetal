@@ -1,3 +1,4 @@
+#include "test_feat.h"
 #ifndef TEST_FEAT_H
 #include "boot_main.h"
 #include <string.h>
@@ -27,11 +28,10 @@ int __io_putchar(int ch)
 }
 
 void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
-    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,(const uint8_t *)"Jumping to application\r\n",35);
+    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,(const uint8_t *)"Jumping to application\n",35);
     delay_ms(10);
     uint32_t app_msp = *(volatile uint32_t *)(app_addr + 0x00ul);
     uint32_t app_pc_init = *(volatile uint32_t *)(app_addr + 0x04ul); // reset handler's app
-    func_ptr app_entry = (func_ptr)app_pc_init;
 
     // disable all interrupts
     NVIC_Disable_ISR(); 
@@ -40,15 +40,10 @@ void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
     // RCC deinit
     SystemCoreClock_DeInit();
     // Call reset hanlder of application
+    func_ptr app_entry = (func_ptr)app_pc_init;
     app_entry();
 }
-
-int boot_main(void) {
-    boot_handle_t boot_ctx;
-    g_boot_ctx = &boot_ctx; // use for printf
-    boot_config(&boot_ctx);
-    boot_init(&boot_ctx);
-    
+void test_tmp(boot_handle_t *boot_ctx) {
     TIM2_Init();
     TIM2_SetTime(3000);
     
@@ -57,10 +52,9 @@ int boot_main(void) {
     uint16_t recv_length = 0;
     int e_flag = 0;
 
-    boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg,(const uint8_t *)"Waiting firmware update signal in 3 seconds.\r\n", 47);
     TIM2_Start();
     while (!TIM2_IsTimeElapsed()) {
-        recv_length = boot_ctx.comm_if->recv(boot_ctx.comm_if->comm_cfg,fw_chunk + total_recv, sizeof(fw_chunk) - total_recv);
+        recv_length = boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg,fw_chunk + total_recv, sizeof(fw_chunk) - total_recv);
         if (recv_length > 0) {
             total_recv += recv_length;
             // this is temp logic
@@ -77,12 +71,21 @@ int boot_main(void) {
     }
     
     if(e_flag == 1) {
-        boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg, fw_chunk, total_recv);
+        boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, fw_chunk, total_recv);
         delay_ms(10);
-        boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg, (const uint8_t *)"Firmware update.\r\n", 18);
+        boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, (const uint8_t *)"Firmware update.\r\n", 18);
     } else {
-        enter_app(&boot_ctx,APP_FLASH_ADDR);
+        enter_app(boot_ctx,APP_FLASH_ADDR);
     }
+}
+
+int boot_main(void) {
+    boot_handle_t boot_ctx;
+    g_boot_ctx = &boot_ctx; // use for printf
+    boot_config(&boot_ctx);
+    boot_init(&boot_ctx);
+    test_tmp(&boot_ctx);
+
     return 0;
 }
 #endif // TEST_FEAT_H
