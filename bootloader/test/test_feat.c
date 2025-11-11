@@ -98,26 +98,21 @@ void test_flash(boot_handle_t *boot_ctx) {
     }
 
     uint8_t arr[12] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 ,0x07, 0x08, 0x09, 0x0a, 0x0b};
-    uint8_t read_arr[12];
-    uint32_t write_byte = 0;
-    printf("[2] Write arr\n");
-    for(uint32_t i = 0; i < sizeof(arr); i+=4) {
-        write_byte = ((uint32_t)arr[i])|
-                        ((uint32_t)arr[i+1] << 8)|
-                        ((uint32_t)arr[i+2] << 16)|
-                        ((uint32_t)arr[i+3] << 24);
-        if (flash_write_word(TEST_SECTOR_ADDR + i, write_byte)) {
-            printf("flash write error at:%08ld",TEST_SECTOR_ADDR +i);
-            return;
-        }
+    int arr_size = sizeof(arr)/sizeof (arr[0]);
+    if (flash_write_blk(TEST_SECTOR_ADDR, arr,arr_size) != FLASH_OK) {
+        printf("flash write error with size %d \n",arr_size);
+        return;
     }
-    printf("Write OK");
-    for (uint32_t i = 0; i < sizeof(read_arr); i++) {
+
+    uint8_t read_arr[12];
+    printf("Write OK\n");
+    for (uint32_t i = 0; i < arr_size ; i++) {
         read_arr[i] = *(volatile uint8_t *)(TEST_SECTOR_ADDR + i);
     }
+
     printf("[3] Verification\n");
     uint32_t mismatch = 0;
-    for (uint32_t i = 0; i < sizeof(read_arr); i++) {
+    for (uint32_t i = 0; i < sizeof(arr_size); i++) {
         if (arr[i] != read_arr[i]) {
             printf("Mismatch at byte %lu: write=0x%02X read=0x%02X\n", i, arr[i], read_arr[i]);
             mismatch = 1;

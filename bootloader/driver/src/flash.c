@@ -127,6 +127,41 @@ int flash_write_word(uint32_t addr, uint32_t data) {
     return status;
 }
 
+int flash_write_blk(uint32_t addr, uint8_t *data, uint32_t data_size) {
+    if (!data || data_size == 0) return FLASH_ERROR;
+
+    int status;
+    uint32_t offset = 0;
+
+    while (offset < data_size) {
+        uint32_t word = 0;
+        uint32_t remain = data_size - offset;
+
+        if (remain >= 4) {
+            word =  (uint32_t)data[offset] |
+                   ((uint32_t)data[offset + 1] << 8) |
+                   ((uint32_t)data[offset + 2] << 16) |
+                   ((uint32_t)data[offset + 3] << 24);
+        } else {
+            // Padding 0xFF for remain bytes
+            for (uint32_t i = 0; i < remain; i++) {
+                word |= ((uint32_t)data[offset + i]) << (i * 8);
+            }
+            for (uint32_t i = remain; i < 4; i++) {
+                word |= 0xFF << (i * 8);
+            }
+        }
+
+        status = flash_write_word(addr + offset, word);
+        if (status != FLASH_OK) {
+            return status;
+        }
+
+        offset += 4;
+    }
+
+    return FLASH_OK;
+}
 uint32_t flash_read_word(uint32_t addr) {
     return *((volatile uint32_t *)addr);
 }

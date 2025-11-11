@@ -28,7 +28,7 @@ add_custom_target(flash_app
 )
 
 add_custom_target(flash_boot
-    COMMAND ${FLASH_TOOL} -c port=SWD -d-d ${BOOT_BIN} ${BOOT_ADDRESS} -rst
+    COMMAND ${FLASH_TOOL} -c port=SWD -d ${BOOT_BIN} ${BOOT_ADDRESS} -rst
     COMMENT Flashing Bootloader to STM32...
     VERBATIM
 )

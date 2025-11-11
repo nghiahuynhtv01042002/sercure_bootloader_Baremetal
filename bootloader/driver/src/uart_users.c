@@ -1,7 +1,7 @@
 /* This file is used to override weak aliases defined in uart.h */
 #include "uart.h"
-#define USER_UART_DEFINE
-// #ifdef USER_UART_DEFINE
+// #define USER_UART_DEFINE
+#ifdef USER_UART_DEFINE
 uint16_t UART_Normal_ReceiveData(uint8_t *buffer, uint16_t max_length) {
     uint16_t count = 0;
     while(count < max_length) {

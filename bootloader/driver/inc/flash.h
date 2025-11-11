@@ -50,6 +50,7 @@ int flash_wait_ready(void);
 void flash_clear_errors(void);
 int flash_erase_sector(uint8_t sector);
 int flash_write_word(uint32_t addr, uint32_t data);
+int flash_write_blk(uint32_t addr, uint8_t *data, uint32_t data_size);
 uint32_t flash_read_word(uint32_t addr);
 
 #endif // FLASH_H

@@ -113,8 +113,8 @@
 #define RCC_APB1ENR_USART2EN (1 << 17)
 
 // Buffer sizes
-#define UART_TX_BUFFER_SIZE (2048)
-#define UART_RX_BUFFER_SIZE (2048)
+#define UART_TX_BUFFER_SIZE (512)
+#define UART_RX_BUFFER_SIZE (512)
 
 // UART Mode definitions
 typedef enum {
