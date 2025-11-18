@@ -49,10 +49,28 @@ static int read_with_timeout(SerialHandle *serial, uint8_t *data, size_t len, in
     }
     return total_read; 
 }
+int send_update_signal(SerialHandle *serial) {
+    // Step 1: Send update command (0x70)
+    printf("\nSending update command...\n");
+    uint8_t update_cmd = 0x70;
+    if (serial_write(serial, &update_cmd, 1) != 1) {
+        printf("Error: Failed to send update command\n");
+        serial_close(serial);
+        return -1;
+    }
 
+    // Wait for ACK (0x71)
+    uint8_t ack = 0;
+    printf("[Waiting for ACK...\n");
+    if (read_with_timeout(serial, &ack, 1, ACK_TIMEOUT_MS) != 1 || ack != 0x71) {
+        printf("Error: No ACK received (got 0x%02X, expected 0x71)\n", ack);
+        serial_close(serial);
+        return -1;
+    }
+    printf("Update cmd: ACK received successfully 0x%02X\n",ack);
+    return 0;
+}
 int send_firmware(SerialHandle *serial, const char *com, const char *filepath) {
-
-    
     // Flush any existing data
     flush_serial(serial, 500);
 
@@ -202,15 +220,19 @@ int main(int argc, char *argv[]) {
     const char *com = argv[1];
     SerialHandle serial;
     uint32_t baudrate = 115200;
-    printf("Opening serial port: %s @ 115200 baud\n", com);
+    printf("Opening serial port: %s @ %ld baud\n", com, baudrate);
     if (serial_open(&serial, com, baudrate) != 0) {
         printf("Error: Cannot open serial port %s\n", com);
         return -1;
     }
     // Small delay for serial port to stabilize
     sleep_ms(100);
-
-    int result = send_firmware(&serial, com, argv[2]);
+    int result = send_update_signal(&serial);
+    if(result != 0 ) {
+        printf("\nFail to send signal update\n");
+        return result;
+    }
+    result = send_firmware(&serial, com, argv[2]);
     
     if (result == 0) {
         printf("\nFirmware upload successful!\n");

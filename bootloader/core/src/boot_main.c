@@ -16,6 +16,8 @@ extern void NVIC_Disable_ISR(void);
 extern int8_t boot_config(boot_handle_t* boot_ctx);
 extern int8_t boot_init(boot_handle_t* boot_ctx);
 
+static int receive_new_firmware(boot_handle_t *boot_ctx, uint32_t flash_addr) ;
+
 typedef void(*func_ptr)(void);
 // Global boot context pointer for __io_putchar / printf
 static boot_handle_t *g_boot_ctx = NULL;
@@ -31,7 +33,8 @@ int __io_putchar(int ch)
 }
 
 void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
-    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,(const uint8_t *)"Jumping to application\n",35);
+    const char* msg = "Jumping to application\n";
+    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,(const uint8_t *)msg,strlen(msg));
     delay_ms(10);
     uint32_t app_msp = *(volatile uint32_t *)(app_addr + 0x00ul);
     uint32_t app_pc_init = *(volatile uint32_t *)(app_addr + 0x04ul); // reset handler's app
@@ -46,39 +49,35 @@ void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
     func_ptr app_entry = (func_ptr)app_pc_init;
     app_entry();
 }
-void test_tmp(boot_handle_t *boot_ctx) {
+void firmware_update_tmp(boot_handle_t *boot_ctx) {
     TIM2_Init();
-    TIM2_SetTime(3000);
-    
-    static uint8_t fw_chunk[256];
-    uint16_t total_recv = 0;  
-    uint16_t recv_length = 0;
-    int e_flag = 0;
+    TIM2_SetTime(10000);
+    uint8_t recv_byte = 0;
+    int received_flag = 0;
 
     TIM2_Start();
     while (!TIM2_IsTimeElapsed()) {
-        recv_length = boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg,fw_chunk + total_recv, sizeof(fw_chunk) - total_recv);
-        if (recv_length > 0) {
-            total_recv += recv_length;
-            // this is temp logic
-            if (fw_chunk[total_recv - 1] == '\n') {
-                e_flag = 1;
-                TIM2_Stop();
-                TIM2_ClearFlag();
-                NVIC_ClearPendingIRQ(TIM2_IRQn);
-                NVIC_DisableIRQ(TIM2_IRQn);
+        if (boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg, &recv_byte, 1) == 1) {
+            if (recv_byte == 0x70) {        // check start byte
+                uint8_t ack = 0x71;          // send ACK
+                boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, &ack, 1);
+                received_flag = 1;
                 break;
             }
         }
-        delay_ms(1);  
+        delay_ms(1);
     }
-    
-    if(e_flag == 1) {
-        boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, fw_chunk, total_recv);
-        delay_ms(10);
-        boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, (const uint8_t *)"Firmware update.\r\n", 18);
+
+    TIM2_Stop();
+    TIM2_ClearFlag();
+    NVIC_ClearPendingIRQ(TIM2_IRQn);
+    NVIC_DisableIRQ(TIM2_IRQn);
+
+    if (received_flag) {
+        receive_new_firmware(boot_ctx, APP_FLASH_ADDR);
     } else {
-        enter_app(boot_ctx,APP_FLASH_ADDR);
+        // timeout, jump to app
+        enter_app(boot_ctx, APP_FLASH_ADDR);
     }
 }
 #define START_CMD 0x55
@@ -89,8 +88,7 @@ void test_tmp(boot_handle_t *boot_ctx) {
 #define CHUNK_ACK 0xCC
 #define CHUNK_SIZE 256
 
-static int receive_new_firmware(boot_handle_t *boot_ctx, uint32_t flash_addr)
-{
+static int receive_new_firmware(boot_handle_t *boot_ctx, uint32_t flash_addr) {
     uint8_t cmd;
     uint8_t ack;
     uint32_t fw_size = 0;
@@ -98,8 +96,6 @@ static int receive_new_firmware(boot_handle_t *boot_ctx, uint32_t flash_addr)
     uint8_t buffer[CHUNK_SIZE];
 
     // 1. Wait for start command (0x55)
-    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,
-        (const uint8_t *)"Waiting for start...\r\n", 23);
 
     while (1) {
         if (boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg, &cmd, 1) == 1) {
@@ -189,10 +185,7 @@ int boot_main(void) {
     g_boot_ctx = &boot_ctx; // use for printf
     boot_config(&boot_ctx);
     boot_init(&boot_ctx);
-    if(receive_new_firmware(&boot_ctx, APP_FLASH_ADDR) == 0 ) {
-        enter_app(&boot_ctx, APP_FLASH_ADDR);
-    }
-
+    firmware_update_tmp(&boot_ctx);
     return 0;
 }
 #endif // TEST_FEAT_H
