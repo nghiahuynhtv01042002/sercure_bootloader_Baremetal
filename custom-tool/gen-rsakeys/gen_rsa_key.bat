@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-set "fw_path=..\..\build\application"
+set "fw_path=..\..\build\application\application.bin"
 for %%F in (%fw_path%) do set "fw_name=%%~nF"
 
 echo Generating RSA private key...
@@ -10,10 +10,10 @@ echo Extracting public key...
 openssl rsa -in private_key.pem -pubout -out public_key.pem
 
 echo Signing firmware.bin...
-openssl dgst -sha256 -sign private_key.pem -out %fw_name%.sig %fw_path%
+openssl dgst -sha256 -sign private_key.pem -out signature.sig %fw_path%
 
 echo Verifying signature...
-openssl dgst -sha256 -verify public_key.pem -signature %fw_name%.sig %fw_path%
+openssl dgst -sha256 -verify public_key.pem -signature signature.sig %fw_path%
 
 @REM echo Extracting key info...
 @REM openssl rsa -in public_key.pem -pubin -text -noout > key_info.txt
@@ -41,11 +41,6 @@ for /f "tokens=2 delims= " %%a in ('openssl rsa -in public_key.pem -pubin -text 
 
 echo %EXP%> exponent.txt
 
-echo Done!
-echo - private_key.pem
-echo - public_key.pem
-echo - firmware.sig
-echo - modulus.hex
-echo - exponent.txt
+python convert_keys.py 
 
 endlocal

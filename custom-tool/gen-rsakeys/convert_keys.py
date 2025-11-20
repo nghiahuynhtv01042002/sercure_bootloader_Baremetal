@@ -14,8 +14,6 @@ def hex_string_to_c_array(hex_string, array_name):
                 line += f"0x{bytes_data[i+j]:02X}"
                 if i + j < len(bytes_data) - 1:
                     line += ", "
-            if j == 7:
-                line += " "
         c_array += line + "\n"
     c_array += "};\n"
     return c_array, len(bytes_data)
@@ -31,8 +29,6 @@ def file_to_c_array(filename, array_name):
                 line += f"0x{data[i+j]:02X}"
                 if i + j < len(data) - 1:
                     line += ", "
-            if j == 7:
-                line += " "
         c_array += line + "\n"
     c_array += "};\n"
     return c_array, len(data)
@@ -62,14 +58,14 @@ def main():
         h_decls.append("extern const uint32_t rsa_exponent;")
 
         # Read signature
-        print("Reading firmware.sig...")
-        sig_array, sig_len = file_to_c_array('firmware.sig', "firmware_signature")
+        print("Reading signature.sig...")
+        sig_array, sig_len = file_to_c_array('signature.sig', "firmware_signature")
         c_defs.append(sig_array)
         h_decls.append(f"extern const uint8_t firmware_signature[{sig_len}];")
         macros.append(f"#define SIGNATURE_SIZE {sig_len}")
 
         print("Writing rsa_keys.h...")
-        with open('../../bootloader/RSA2048/rsakeys.h', 'w') as f:
+        with open('../../bootloader/RSA2048/rsakeys/rsa_keys.h', 'w') as f:
             f.write("#ifndef RSA_KEYS_H\n#define RSA_KEYS_H\n\n")
             f.write("#include <stdint.h>\n\n")
             for m in macros:
@@ -80,7 +76,7 @@ def main():
             f.write("\n#endif // RSA_KEYS_H\n")
 
         print("Writing rsa_keys.c...")
-        with open('.../../bootloader/RSA2048/rsakeys.c', 'w') as f:
+        with open('../../bootloader/RSA2048/rsakeys/rsa_keys.c', 'w') as f:
             f.write('#include "rsa_keys.h"\n\n')
             for d in c_defs:
                 f.write(d + "\n")
