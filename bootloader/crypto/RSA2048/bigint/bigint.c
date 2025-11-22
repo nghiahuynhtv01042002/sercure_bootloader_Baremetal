@@ -295,18 +295,10 @@ bigIntStatus_t bigint_mul(bigInt_t *res, const bigInt_t *a, const bigInt_t *b) {
     return BIGINT_OK;
 }
 
-// helper bigint_divmode
-static uint32_t bigint_div_word(uint64_t dividend, uint32_t divisor, uint32_t *remainder) {
-    if (divisor == 0) {
-        *remainder = 0;
-        return 0;
-    }
-    *remainder = (uint32_t)(dividend % divisor);
-    return (uint32_t)(dividend / divisor);
-}
+
 
 // helper bigint_divmode
-static bigIntStatus_t bigint_div_word_inplace(bigInt_t *a, uint32_t divisor, uint32_t *remainder) {
+static bigIntStatus_t bigint_div_word(bigInt_t *a, uint32_t divisor, uint32_t *remainder) {
     if (!a || divisor == 0) return BIGINT_ERR_DIV_ZERO;
     
     uint64_t carry = 0;
@@ -359,7 +351,7 @@ bigIntStatus_t bigint_divmod(bigInt_t *quot, bigInt_t *rem, const bigInt_t *num,
         if (status != BIGINT_OK) return status;
         
         uint32_t remainder_word;
-        status = bigint_div_word_inplace(quot, den->words[0], &remainder_word);
+        status = bigint_div_word(quot, den->words[0], &remainder_word);
         if (status != BIGINT_OK) return status;
         
         return bigint_from_uint32(rem, remainder_word);

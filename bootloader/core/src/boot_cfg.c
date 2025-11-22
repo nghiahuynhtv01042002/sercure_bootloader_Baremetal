@@ -47,11 +47,12 @@ int8_t boot_config(boot_handle_t* boot_ctx) {
     if (!boot_ctx) return -1;
     boot_ctx->secure_mode = SECURE_NONE;
     boot_ctx->comm_type = COMM_UART;
-    return  boot_select_comm(boot_ctx,  boot_ctx->comm_type);
+    return boot_select_comm(boot_ctx,  boot_ctx->comm_type);
 }
 
 int8_t boot_init(boot_handle_t* boot_ctx) {
     if (!boot_ctx) return -1;
+    boot_ctx->state = BOOT_STATE_IDLE;
     boot_ctx->comm_if->init(boot_ctx->comm_if->comm_cfg);
     return 0;
 }

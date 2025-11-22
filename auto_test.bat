@@ -4,7 +4,7 @@ echo ###########################################
 echo build Bootloader
 echo ###########################################
 
-call autobuild-script.bat
+call auto_build.bat
 echo ###########################################
 echo build flash_fw_cli
 echo ###########################################

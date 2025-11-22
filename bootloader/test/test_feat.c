@@ -7,8 +7,8 @@
 
 // #define TEST_UART_TIM
 // #define TEST_ECHO_UART
-#define TEST_FLASH
-
+// #define TEST_FLASH
+#define TEST_FW_UPDATE
 extern uint32_t SystemCoreClock;
 extern void SystemCoreClock_DeInit(void);
 extern void NVIC_Disable_ISR(void);
@@ -181,6 +181,137 @@ void test_uart_with_timmer(boot_handle_t *boot_ctx) {
     }
 }
 
+void test_firmware_update(boot_handle_t *boot_ctx) {
+    TIM2_Init();
+    TIM2_SetTime(10000);
+    uint8_t recv_byte = 0;
+    int received_flag = 0;
+
+    TIM2_Start();
+    while (!TIM2_IsTimeElapsed()) {
+        if (boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg, &recv_byte, 1) == 1) {
+            if (recv_byte == 0x70) {        // check start byte
+                uint8_t ack = 0x71;          // send ACK
+                boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, &ack, 1);
+                received_flag = 1;
+                break;
+            }
+        }
+        delay_ms(1);
+    }
+
+    TIM2_Stop();
+    TIM2_ClearFlag();
+    NVIC_ClearPendingIRQ(TIM2_IRQn);
+    NVIC_DisableIRQ(TIM2_IRQn);
+
+    if (received_flag) {
+        receive_new_firmware(boot_ctx, APP_FLASH_ADDR);
+    } else {
+        // timeout, jump to app
+        enter_app(boot_ctx, APP_FLASH_ADDR);
+    }
+}
+#define START_CMD 0x55
+#define START_ACK 0xAA
+#define SIZE_ACK  0xAA
+#define ERASE_CMD 0xEC
+#define ERASE_ACK 0xAB
+#define CHUNK_ACK 0xCC
+#define CHUNK_SIZE 256
+
+static int receive_new_firmware(boot_handle_t *boot_ctx, uint32_t flash_addr) {
+    uint8_t cmd;
+    uint8_t ack;
+    uint32_t fw_size = 0;
+    uint32_t received = 0;
+    uint8_t buffer[CHUNK_SIZE];
+
+    // 1. Wait for start command (0x55)
+
+    while (1) {
+        if (boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg, &cmd, 1) == 1) {
+            if (cmd == START_CMD) {
+                ack = START_ACK;     // send 0xAA
+                boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, &ack, 1);
+                break;
+            } else {
+                boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,
+                    (const uint8_t *)"Wrong start byte\r\n", 19);
+            }
+        }
+    }
+
+    // 2. Receive firmware size (4 bytes)
+    uint8_t *p = (uint8_t *)&fw_size;
+    uint32_t got = 0;
+
+    while (got < 4) {
+        int ret = boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg, p + got, 4 - got);
+        if (ret > 0) got += ret;
+    }
+
+    // ACK size
+    ack = SIZE_ACK; // 0xAA
+    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, &ack, 1);
+
+    while (1) {
+        if (boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg, &cmd, 1) == 1) {
+            if (cmd == ERASE_CMD) {
+                if (flash_erase_sector(APP_SECTION_NUMBER) != FLASH_OK) {
+                    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,
+                                            (const uint8_t *)"ERR: flash erase\r\n", 19);
+                    return -1;
+                }
+                break;
+            } else {
+                boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,
+                                        (const uint8_t *)"Wrong erase byte\r\n", 19);
+            }
+        }
+    }    
+
+
+    // ACK flash erase
+    ack = ERASE_ACK; // 0xAB
+    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, &ack, 1);
+
+    // 4. Receive firmware chunks
+    while (received < fw_size) {
+        uint32_t remain = fw_size - received;
+        uint32_t chunk_size = (remain > CHUNK_SIZE) ? CHUNK_SIZE : remain;
+        
+        uint32_t chunk_received = 0;
+        
+        while (chunk_received < chunk_size) {
+            int ret = boot_ctx->comm_if->recv(boot_ctx->comm_if->comm_cfg, 
+                                              buffer + chunk_received, 
+                                              chunk_size - chunk_received);
+            if (ret > 0) {
+                chunk_received += ret;
+            } 
+        }
+        
+        // Write chunk to flash
+        if (flash_write_blk(flash_addr + received, buffer, chunk_received) != FLASH_OK) {
+            boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, 
+                                   (const uint8_t *)"ERR: flash write\r\n", 19);
+            return -1;
+        }
+        
+        received += chunk_received;
+        
+        // ACK chunk
+        ack = CHUNK_ACK;
+        boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, &ack, 1);
+    }
+    
+    // Done
+    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,
+                           (const uint8_t *)"Firmware update done\r\n", 23);
+    return 0;
+}
+
 void test_if(boot_handle_t *boot_ctx) {
 #if defined (TEST_FLASH)
     test_flash(boot_ctx);
@@ -188,6 +319,8 @@ void test_if(boot_handle_t *boot_ctx) {
     test_uart_with_timmer(boot_ctx);
 #elif defined (TEST_ECHO_UART)
     test_uart(boot_ctx);
+#elif defined (TEST_FW_UPDATE)
+    test_firmware_update(boot_ctx);
 #endif
 }
 
