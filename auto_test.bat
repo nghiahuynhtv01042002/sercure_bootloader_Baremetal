@@ -1,5 +1,14 @@
 rem autotest
 @echo off
+echo ###########################################
+echo clean all
+echo ###########################################
+call auto_build.bat clean
+
+echo ###########################################
+echo build firmware/application
+echo ###########################################
+call auto_build.bat application
 
 echo ###########################################
 echo generate signature
@@ -12,12 +21,11 @@ popd
 echo ###########################################
 echo build Bootloader
 echo ###########################################
+call auto_build.bat flash_boot
 
-call auto_build.bat
 echo ###########################################
 echo build flash_fw_cli
 echo ###########################################
-
 pushd custom-tool\firmware-flash
 call build.bat
 popd

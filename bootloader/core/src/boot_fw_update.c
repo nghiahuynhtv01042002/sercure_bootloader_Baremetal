@@ -126,7 +126,7 @@ void firmware_update(boot_handle_t *boot_ctx) {
     TIM2_Init();
     TIM2_SetTime(10000);
     int received_flag = 0;
-
+    send_mesage(boot_ctx,"Waiting for firmware update command...\r\n");
     TIM2_Start();
     while (!TIM2_IsTimeElapsed()) {
         if(wait_for_command(boot_ctx, UPDATE_FW_CMD, UPDATE_FW_ACK) == FW_OK) {
@@ -150,6 +150,8 @@ void firmware_update(boot_handle_t *boot_ctx) {
             send_mesage(boot_ctx,"OK: firmware received\r\n");
         }
     } else {
+        send_mesage(boot_ctx,"jumping to application...\r\n");
+
         // timeout, jump to app
         enter_app(boot_ctx, APP_FLASH_ADDR);
     }

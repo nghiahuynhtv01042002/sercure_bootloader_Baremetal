@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(OTA)
+project(SERCURE_BOOTLOADER_PROJECT C ASM)
 
 add_subdirectory(bootloader)
 add_subdirectory(application)
