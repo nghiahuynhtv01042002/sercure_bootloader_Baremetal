@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-set "fw_path=..\..\build\application\application.bin"
+set "fw_path=%1"
 for %%F in (%fw_path%) do set "fw_name=%%~nF"
 
 echo Generating RSA private key...

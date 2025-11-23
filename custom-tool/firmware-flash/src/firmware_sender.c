@@ -2,243 +2,200 @@
 #include <stdint.h>
 #include <string.h>
 #include "serial_com.h"
+#include "firmware_sender.h"
 
-#ifdef _WIN32
-    #include <windows.h>
-    #define sleep_ms(ms) Sleep(ms)
-#endif
 
-#define CHUNK_SIZE 256
-#define MAX_RETRIES 3
-#define ACK_TIMEOUT_MS 10000
+// Bootloader protocol commands (PC → MCU)
 
-// Flush serial buffer to clear debug messages
+
 static void flush_serial(SerialHandle *serial, int timeout_ms) {
     uint8_t dummy[128];
-    DWORD start_time = GetTickCount(); 
-    DWORD current_time;
-    while ( (current_time = GetTickCount()) - start_time < timeout_ms ) {
-        if (serial_read(serial, dummy, sizeof(dummy)) <= 0) {
-            break; 
-        }
-        sleep_ms(10); 
+    DWORD start = GetTickCount();
+    while (GetTickCount() - start < (DWORD)timeout_ms) {
+        int r = serial_read(serial, dummy, sizeof(dummy));
+        if (r <= 0) break;
+        sleep_ms(5);
     }
 }
 
 static int read_with_timeout(SerialHandle *serial, uint8_t *data, size_t len, int timeout_ms) {
-    DWORD start_time = GetTickCount(); 
-    DWORD current_time;
-    int total_read = 0;
-    while (total_read < len) {
-        current_time = GetTickCount();
-        if ((int)(current_time - start_time) >= timeout_ms) {
-            break; 
-        }
-        int bytes_to_read = len - total_read;
-        int n = serial_read(serial, data + total_read, bytes_to_read);
-        
-        if (n > 0) {
-            total_read += n;
-            
-        } else if (n == 0) {
-            sleep_ms(10); 
-            
-        } else { 
-            return -1; 
-        }
+    DWORD start = GetTickCount();
+    int total = 0;
+
+    while (total < (int)len) {
+        if ((int)(GetTickCount() - start) >= timeout_ms)
+            return total;
+
+        int n = serial_read(serial, data + total, len - total);
+
+        if (n > 0)
+            total += n;
+        else if (n == 0)
+            sleep_ms(5);
+        else
+            return -1;
     }
-    return total_read; 
+    return total;
 }
-int send_update_signal(SerialHandle *serial) {
-    // Step 1: Send update command (0x70)
-    printf("\nSending update command...\n");
-    uint8_t update_cmd = 0x70;
-    if (serial_write(serial, &update_cmd, 1) != 1) {
-        printf("Error: Failed to send update command\n");
-        serial_close(serial);
+
+static int send_cmd_and_wait_ack(SerialHandle *serial, uint8_t cmd,
+                                 uint8_t expected_ack, int timeout_ms) {
+    if (serial_write(serial, &cmd, 1) != 1) {
+        printf("Error: failed to send CMD 0x%02X\n", cmd);
+        return -1;
+    }
+    uint8_t ack = 0;
+    if (read_with_timeout(serial, &ack, 1, timeout_ms) != 1 || ack != expected_ack) {
+        printf("Error: ACK mismatch (got 0x%02X expected 0x%02X)\n", ack, expected_ack);
         return -1;
     }
 
-    // Wait for ACK (0x71)
-    uint8_t ack = 0;
-    printf("[Waiting for ACK...\n");
-    if (read_with_timeout(serial, &ack, 1, ACK_TIMEOUT_MS) != 1 || ack != 0x71) {
-        printf("Error: No ACK received (got 0x%02X, expected 0x71)\n", ack);
-        serial_close(serial);
-        return -1;
-    }
-    printf("Update cmd: ACK received successfully 0x%02X\n",ack);
     return 0;
 }
-int send_firmware(SerialHandle *serial, const char *com, const char *filepath) {
-    // Flush any existing data
-    flush_serial(serial, 500);
+
+static int send_block_and_wait_ack(SerialHandle *serial, const uint8_t *buf, 
+            size_t len, uint8_t expected_ack) {
+    if (serial_write(serial, buf, len) != (int)len) {
+        printf("Error: Failed writing block\n");
+        return -1;
+    }
+
+    uint8_t ack = 0;
+    if (read_with_timeout(serial, &ack, 1, ACK_TIMEOUT_MS) != 1 ||ack != expected_ack) {
+        printf("Error: Block ACK mismatch (got 0x%02X)\n", ack);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int send_4bytes_size(SerialHandle *serial, uint32_t size, uint8_t expected_ack) {
+    if (serial_write(serial, (uint8_t *)&size, 4) != 4) {
+        printf("Error: Failed to send size\n");
+        return -1;
+    }
+
+    uint8_t ack = 0;
+    if (read_with_timeout(serial, &ack, 1, ACK_TIMEOUT_MS) != 1 || ack != expected_ack) {
+        printf("Error: Wrong ACK for size (got 0x%02X expected 0x%02X)\n", ack, expected_ack);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int send_data_chunk(SerialHandle *serial, FILE *fw, uint32_t file_size) {
+    uint8_t buffer[CHUNK_SIZE];
+    uint32_t sent = 0;
+
+    while (1) {
+        size_t n = fread(buffer, 1, CHUNK_SIZE, fw);
+        if (n == 0) break;
+
+        if (send_block_and_wait_ack(serial, buffer, n, CHUNK_ACK) < 0) return -1;
+        sent += n;
+        int percent = (sent * 100) / file_size;
+        printf("\r[DATA] %3d%% (%u/%u bytes)", percent, sent, file_size);
+        fflush(stdout);
+    }
+
+    printf("\n[DATA] Completed\n");
+    return 0;
+}
+
+int send_update_signal(SerialHandle *serial) {
+    flush_serial(serial, 300);
+
+    printf("Sending firmware update signal...\n");
+    if (send_cmd_and_wait_ack(serial, UPDATE_FW_CMD, UPDATE_FW_ACK, ACK_TIMEOUT_MS) < 0) {
+        printf("Error: Failed to send update signal\n");
+        return -1;
+    }
+    printf("Update signal acknowledged by device.\n");
+    return 0;
+}
+
+static int send_signature(SerialHandle *serial, const char *sig_path) {
+    FILE *fs = fopen(sig_path, "rb");
+    if (!fs) {
+        printf("Warning: signature file not found. Skipped.\n");
+        return 0; // not fatal
+    }
+
+    fseek(fs, 0, SEEK_END);
+    uint32_t sig_size = ftell(fs);
+    fseek(fs, 0, SEEK_SET);
+    if (sig_size < 256) return -1;
+
+    printf("\n[SIG] Sending signature cmd\n", sig_size);
+    // notify MCU we will send signature
+    if (send_cmd_and_wait_ack(serial, SIGNATURE_CMD, SIGNATURE_ACK, ACK_TIMEOUT_MS) < 0)
+        return -1;
+    // Send signature size
+    printf("\n[SIG] Sending signature (%u bytes)\n", sig_size);
+
+    if (send_4bytes_size(serial, sig_size,SIGNATURE_ACK) < 0)
+        return -1;
+
+    uint8_t *buf = malloc(sig_size);
+    fread(buf, 1, sig_size, fs);
+    fclose(fs);
+
+    if (send_block_and_wait_ack(serial, buf, sig_size, SIGNATURE_ACK) < 0) {
+        free(buf);
+        return -1;
+    }
+
+    free(buf);
+    printf("[SIG] Sending signature OK.\n");
+    return 0;
+}
+
+int send_firmware(SerialHandle *serial, const char *com, const char *filepath, const char *sig_path) {
+    flush_serial(serial, 300);
 
     FILE *fw = fopen(filepath, "rb");
     if (!fw) {
-        printf("Error: Cannot open firmware file: %s\n", filepath);
-        serial_close(serial);
+        printf("Error: cannot open %s\n", filepath);
         return -1;
     }
 
-    // Get file size
     fseek(fw, 0, SEEK_END);
     uint32_t file_size = ftell(fw);
     fseek(fw, 0, SEEK_SET);
-    printf("Firmware file: %s\n", filepath);
-    printf("Firmware size: %u bytes\n", file_size);
 
-    // Step 1: Send start command (0x55)
-    printf("\n[1/5] Sending start command...\n");
-    uint8_t start_cmd = 0x55;
-    if (serial_write(serial, &start_cmd, 1) != 1) {
-        printf("Error: Failed to send start command\n");
-        fclose(fw);
-        serial_close(serial);
-        return -1;
-    }
 
-    // Wait for ACK (0xAA)
-    uint8_t ack = 0;
-    printf("[1/5] Waiting for ACK...\n");
-    if (read_with_timeout(serial, &ack, 1, ACK_TIMEOUT_MS) != 1 || ack != 0xAA) {
-        printf("Error: No ACK received (got 0x%02X, expected 0xAA)\n", ack);
-        fclose(fw);
-        serial_close(serial);
-        return -1;
-    }
-    printf("[1/5] start cmd: ACK received successfully 0x%02X\n",ack);
+    // Step 1: tell MCU to start FW update
+    if (send_cmd_and_wait_ack(serial, START_CMD, START_ACK, ACK_TIMEOUT_MS) < 0)
+        goto fail;
+        
+    printf("\nFirmware: %s (%u bytes)\n", filepath, file_size);
+    // Step 2: send file size
+    if (send_4bytes_size(serial, file_size,FW_SIZE_ACK) < 0)
+        goto fail;
 
-    // Step 2: Send firmware size
-    printf("\n[2/5] Sending firmware size (%u bytes)...\n", file_size);
-    sleep_ms(50); // Small delay before sending size
-    
-    if (serial_write(serial, (uint8_t *)&file_size, 4) != 4) {
-        printf("Error: Failed to send firmware size\n");
-        fclose(fw);
-        serial_close(serial);
-        return -1;
-    }
+    // Step 3: erase flash
+    if (send_cmd_and_wait_ack(serial, ERASE_CMD, ERASE_ACK, ACK_TIMEOUT_MS) < 0)
+        goto fail;
 
-    ack = 0;
-    if (read_with_timeout(serial, &ack, 1, ACK_TIMEOUT_MS) != 1 || ack != 0xAA) {
-        printf("Error: No ACK received (got 0x%02X, expected 0xAA)\n", ack);
-        fclose(fw);
-        serial_close(serial);
-        return -1;
-    }
-    printf("[2/5] Sending firmware size: ACK received successfully: 0x%02X\n",ack);
-  
-    // Step 3: Send erase command (0xEC)
-    printf("\n[3/5] Sending erase command...\n");
-    uint8_t erase_cmd = 0xEC;
-    if (serial_write(serial, &erase_cmd, 1) != 1) {
-        printf("Error: Failed to send erase command\n");
-        fclose(fw);
-        serial_close(serial);
-        return -1;
-    }
+    // Step 4: send the firmware in chunks
+    if (send_data_chunk(serial, fw, file_size) < 0)
+        goto fail;
 
-    // Wait for ACK (0xAB)
-    ack = 0;
-    printf("[3/5] Waiting for ACK...\n");
-    if (read_with_timeout(serial, &ack, 1, ACK_TIMEOUT_MS) != 1 || ack != 0xAB) {
-        printf("Error: No ACK received (got 0x%02X, expected 0xAA)\n", ack);
-        fclose(fw);
-        serial_close(serial);
-        return -1;
-    }
-    printf("[3/5] erase cmd: ACK received successfully 0x%02X\n",ack);
+    // Step 5: optional signature
+    if(send_signature(serial, sig_path)< 0)
+        goto fail;
 
-    // Step 3: Send firmware data in chunks
-    printf("\n[4/5] Sending firmware data...\n");
-    uint8_t buffer[CHUNK_SIZE];
-    size_t bytes;
-    uint32_t offset = 0;
-    uint32_t chunk_count = 0;
-    
-    while ((bytes = fread(buffer, 1, CHUNK_SIZE, fw)) > 0) {
-        // Send chunk
-        if (serial_write(serial, buffer, bytes) != (int)bytes) {
-            printf("\nError: Write failed at offset %u\n", offset);
-            fclose(fw);
-            serial_close(serial);
-            return -1;
-        }
-        // Wait for chunk ACK (0xCC)
-        ack = 0;
-        if (read_with_timeout(serial, &ack, 1, ACK_TIMEOUT_MS) != 1 || ack != 0xCC) {
-            printf("\nError: No chunk ACK at offset %u (got 0x%02X, expected 0xCC)\n", 
-                   offset, ack);
-            fclose(fw);
-            serial_close(serial);
-            return -1;
-        }
-        offset += bytes;
-        chunk_count++;
-        // Progress indicator
-        int progress = (offset * 100) / file_size;
-        printf("\r[4/5] Progress: %3d%% (%u / %u bytes, %u chunks)", 
-               progress, offset, file_size, chunk_count);
-        fflush(stdout);
-    }
-    printf("\n[4/5] All data sent successfully\n");
+    printf("\n[OK] Firmware upload complete.\n");
 
-    // Step 4: Verify completion
-    printf("\n[5/5] Firmware upload complete!\n");
-    printf("Total bytes sent: %u\n", offset);
-    printf("Total chunks: %u\n", chunk_count);
-    
     fclose(fw);
-    
-    // Wait a bit to see final messages from device
-    sleep_ms(500);
-    
-    // Read and display any final messages from bootloader
-    uint8_t msg_buffer[256];
-    int msg_len = serial_read(serial, msg_buffer, sizeof(msg_buffer) - 1);
-    if (msg_len > 0) {
-        msg_buffer[msg_len] = '\0';
-        printf("\nDevice response:\n%s\n", msg_buffer);
-    }
-    
     serial_close(serial);
     return 0;
-}
 
-int main(int argc, char *argv[]) {
-    printf("========================================\n");
-    printf("  Firmware Upload Tool v1.0\n");
-    printf("========================================\n\n");
-    
-    if (argc < 3) {
-        printf("Usage: %s <COM_PORT> <FIRMWARE_FILE>\n", argv[0]);
-        printf("\nExample:\n");
-        printf("  Windows: %s COM3 firmware.bin\n", argv[0]);
-        return 1;
-    }
-    const char *com = argv[1];
-    SerialHandle serial;
-    uint32_t baudrate = 115200;
-    printf("Opening serial port: %s @ %ld baud\n", com, baudrate);
-    if (serial_open(&serial, com, baudrate) != 0) {
-        printf("Error: Cannot open serial port %s\n", com);
-        return -1;
-    }
-    // Small delay for serial port to stabilize
-    sleep_ms(100);
-    int result = send_update_signal(&serial);
-    if(result != 0 ) {
-        printf("\nFail to send signal update\n");
-        return result;
-    }
-    result = send_firmware(&serial, com, argv[2]);
-    
-    if (result == 0) {
-        printf("\nFirmware upload successful!\n");
-    } else {
-        printf("\nFirmware upload failed!\n");
-    }
-    
-    return result;
+fail:
+    fclose(fw);
+    serial_close(serial);
+    return -1;
 }

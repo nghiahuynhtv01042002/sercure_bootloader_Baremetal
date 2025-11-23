@@ -214,7 +214,7 @@ void test_firmware_update(boot_handle_t *boot_ctx) {
 }
 #define START_CMD 0x55
 #define START_ACK 0xAA
-#define SIZE_ACK  0xAA
+#define FW_SIZE_ACK  0xAA
 #define ERASE_CMD 0xEC
 #define ERASE_ACK 0xAB
 #define CHUNK_ACK 0xCC
@@ -252,7 +252,7 @@ static int receive_new_firmware(boot_handle_t *boot_ctx, uint32_t flash_addr) {
     }
 
     // ACK size
-    ack = SIZE_ACK; // 0xAA
+    ack = FW_SIZE_ACK; // 0xAA
     boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg, &ack, 1);
 
     while (1) {

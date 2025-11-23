@@ -11,6 +11,7 @@ include_directories(
 
 # SOURCE FILES 
 set(SRC_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/firmware_sender.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/serial_com.c
 )

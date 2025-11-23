@@ -8,6 +8,6 @@
 
 extern const uint8_t rsa_modulus[256];
 extern const uint32_t rsa_exponent;
-extern const uint8_t firmware_signature[256];
+extern uint8_t firmware_signature[SIGNATURE_SIZE];
 
 #endif // RSA_KEYS_H
