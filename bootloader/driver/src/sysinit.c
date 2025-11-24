@@ -14,7 +14,6 @@ static inline void FPU_Enable(void) {
 }
 
 void System_Init(void) {
-  /* FPU settings ------------------------------------------------------------*/
   #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
     FPU_Enable();
   #endif

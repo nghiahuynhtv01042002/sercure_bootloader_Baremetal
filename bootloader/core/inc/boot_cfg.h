@@ -9,13 +9,15 @@
 #include "sysinit.h"
 #include "tim2.h"
 
-#define APP_BACKUP_ADDR  (0x08010000UL) //(bank2 use for backup)
-#define APP_FLASH_ADDR  (0x08004000UL)
+#define FW_FLASH_ADDR   (0x08020000UL) // (bank1 use for app)
+#define FW_STAGING_ADDR (0x08010000UL) // (bank2 use for staging)
+#define METADATA_ADDR   (0x08004000UL)
+
 #define APP_SECTION_NUMBER (1)
 #define APP_BACKUP_SECTION_NUMBER (4)
 
-#define APP_MSP         (*(volatile uint32_t *)(APP_FLASH_ADDR + 0x0))
-#define APP_ENTRY       (*(volatile uint32_t *)(APP_FLASH_ADDR + 0x04))
+#define APP_MSP         (*(volatile uint32_t *)(FW_FLASH_ADDR + 0x0))
+#define APP_ENTRY       (*(volatile uint32_t *)(FW_FLASH_ADDR + 0x04))
 
 typedef enum {
     SECURE_NONE = 0,
@@ -57,8 +59,11 @@ typedef struct {
     boot_state_t state;
 } boot_handle_t;
 
+int8_t boot_set_state(boot_handle_t* boot_ctx, boot_state_t state);
 int8_t boot_set_securemode(boot_handle_t *boot_ctx, secure_mode_t mode);
 int8_t boot_set_comm_type(boot_handle_t *boot_ctx, comm_type_t type);
 int8_t boot_config(boot_handle_t* boot_ctx);
 int8_t boot_init(boot_handle_t* boot_ctx);
+int8_t boot_deinit(boot_handle_t* boot_ctx);
+
 #endif // BOOT_CFG_H

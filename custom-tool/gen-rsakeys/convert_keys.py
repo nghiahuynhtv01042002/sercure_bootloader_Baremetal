@@ -68,8 +68,8 @@ def main():
         sig_array, sig_len = file_to_c_array('signature.sig', "firmware_signature")
 
         # Replace const with non-const and fix size = SIGNATURE_SIZE
-        sig_array_fixed = f"uint8_t firmware_signature[SIGNATURE_SIZE] = {{\n}};\n"
-        c_defs.append(sig_array_fixed)
+        # sig_array_fixed = f"uint8_t firmware_signature[SIGNATURE_SIZE] = {{\n}};\n"
+        # c_defs.append(sig_array_fixed)
         h_decls.append(f"extern uint8_t firmware_signature[SIGNATURE_SIZE];")
         macros.append(f"#define SIGNATURE_SIZE 256")
 

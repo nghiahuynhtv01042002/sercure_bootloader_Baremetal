@@ -7,7 +7,7 @@
 #define SCB_CPACR       (*(volatile uint32_t *)(SCB + 0x88))
 
 #define VECT_TAB_BASE_ADDRESS   0x08000000UL
-#define VECT_TAB_OFFSET         0x00008000UL
+#define VECT_TAB_OFFSET         0x00020000UL
 
 void System_Init(void);
 #endif // SYS_INIT_H

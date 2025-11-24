@@ -9,6 +9,13 @@ static const comm_interface_t uart_driver = {
     .send     = (void (*)(void *, const uint8_t *, uint16_t))UART_SendData
 };
 
+
+int8_t boot_set_state(boot_handle_t* boot_ctx, boot_state_t state) {
+    if (!boot_ctx) return -1;
+    boot_ctx->state = state;
+    return 0;
+}
+
 static int8_t  boot_select_comm(boot_handle_t *boot_ctx, comm_type_t type) {
     if (!boot_ctx) return -1;
     switch (type) {
@@ -33,16 +40,19 @@ static int8_t  boot_select_comm(boot_handle_t *boot_ctx, comm_type_t type) {
     }
     return 0;
 }
+
 int8_t boot_set_securemode(boot_handle_t *boot_ctx, secure_mode_t mode) {
     if (!boot_ctx) return -1;
     boot_ctx->secure_mode = mode;
     return 0;
 }
+
 int8_t boot_set_comm_type(boot_handle_t *boot_ctx, comm_type_t type) {
     if (!boot_ctx) return -1;
     boot_ctx->comm_type = type;
     return 0;
 }
+
 int8_t boot_config(boot_handle_t* boot_ctx) {
     if (!boot_ctx) return -1;
     boot_ctx->secure_mode = SECURE_NONE;
@@ -54,6 +64,11 @@ int8_t boot_init(boot_handle_t* boot_ctx) {
     if (!boot_ctx) return -1;
     boot_ctx->state = BOOT_STATE_IDLE;
     boot_ctx->comm_if->init(boot_ctx->comm_if->comm_cfg);
+    return 0;
+}
+
+int8_t boot_deinit(boot_handle_t* boot_ctx) {
+    if (!boot_ctx) return -1;
     return 0;
 }
 

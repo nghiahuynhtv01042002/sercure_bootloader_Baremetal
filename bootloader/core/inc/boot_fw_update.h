@@ -10,9 +10,9 @@
 #define ERASE_CMD        (0xEC)
 #define ERASE_ACK        (0x13)
 
-#define FW_SIZE_ACK         (0xAA)   
-#define CHUNK_ACK        (0xCC) 
-#define CHUNK_SIZE       256
+#define FW_SIZE_ACK      (0xAA)
+#define CHUNK_ACK        (0xCC)
+#define CHUNK_SIZE       (256)
 
 #define SIGNATURE_CMD    (0x53)
 #define SIGNATURE_ACK    (0xAC)
@@ -23,15 +23,17 @@
 typedef enum {
     FW_OK = 0,
     FW_ERR_COMM,
+    FW_ERR_TIMEOUT_CMD,
     FW_ERR_FLASH_ERASE,
     FW_ERR_FLASH_WRITE,
     FW_ERR_INVALID_CMD,
+    FW_ERR_INVALID_SIGNATURE, 
 } fw_status_t;
 
 typedef void(*func_ptr)(void);
 
-fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr);
-void firmware_update(boot_handle_t *boot_ctx);
-void send_mesage(boot_handle_t *ctx, const char *msg);
+fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32_t* fw_size);
+fw_status_t firmware_update(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t* fw_size);
+void send_message(boot_handle_t *ctx, const char *msg);
 void enter_app(boot_handle_t *boot_ctx, uint32_t app_addr);
 #endif // BOOT_FW_UPDATE_H

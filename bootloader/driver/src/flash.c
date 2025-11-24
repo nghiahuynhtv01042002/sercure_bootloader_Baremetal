@@ -165,3 +165,16 @@ int flash_write_blk(uint32_t addr, uint8_t *data, uint32_t data_size) {
 uint32_t flash_read_word(uint32_t addr) {
     return *((volatile uint32_t *)addr);
 }
+
+
+uint8_t flash_get_sector(uint32_t addr) {
+    if      (addr < 0x08004000UL) return 0; // Sector 0
+    else if (addr < 0x08008000UL) return 1; // Sector 1
+    else if (addr < 0x0800C000UL) return 2; // Sector 2
+    else if (addr < 0x08010000UL) return 3; // Sector 3
+    else if (addr < 0x08020000UL) return 4; // Sector 4
+    else if (addr < 0x08040000UL) return 5; // Sector 5
+    else if (addr < 0x08060000UL) return 6; // Sector 6
+    else if (addr < 0x08080000UL) return 7; // Sector 7
+    else return -1;                         // Out of flash
+}

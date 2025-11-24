@@ -14,31 +14,33 @@ rsa_verify_result_t rsa_verify_signature(
     // Validate inputs
     if (!message || !signature || !modulus || 
         message_len == 0 || sig_len != mod_len) {
-        return RSA_VERIFY_ERROR;
+        printf("message = %p\nsignature = %p\nmodulus = %p\nmessage_len = %zu\nsig_len = %zu\nmod_len = %zu\n",
+               (void*)message, (void*)signature, (void*)modulus, message_len, sig_len, mod_len);
+        return RSA_VERIFY_INVALID_INPUT;
     }
 
     // Convert signature to bigint (big-endian)
     status = bigint_from_bytes(&sig_bigint, signature, sig_len);
-    if (status != BIGINT_OK) return RSA_VERIFY_ERROR;
+    if (status != BIGINT_OK) return RSA_COVERT_SIGNATURE_ERROR;
     
     // Convert modulus to bigint (big-endian) 
     status = bigint_from_bytes(&mod_bigint, modulus, mod_len);
-    if (status != BIGINT_OK) return RSA_VERIFY_ERROR;
+    if (status != BIGINT_OK) return RSA_COVERT_MODULUS_ERROR;
     
     // Convert exponent to bigint
     status = bigint_from_uint32(&exp_bigint, exponent);
-    if (status != BIGINT_OK) return RSA_VERIFY_ERROR;
+    if (status != BIGINT_OK) return RSA_COVERT_EXPONENT_ERROR;
     
     // Perform RSA public key operation: signature^exponent mod modulus
     status = bigint_mod_exp(&result_bigint, &sig_bigint, &exp_bigint, &mod_bigint);
 
-    if (status != BIGINT_OK) return RSA_VERIFY_ERROR;
+    if (status != BIGINT_OK) return RSA_KEY_OPERATION_ERROR;
     
     
     // Convert result back to bytes with FIXED LENGTH
     uint8_t decrypted[256];
     status = bigint_to_bytes(&result_bigint, decrypted, mod_len);
-    if (status != BIGINT_OK) return RSA_VERIFY_ERROR;
+    if (status != BIGINT_OK) return RSA_CONVERT_KEY_OPERATION_ERROR;
     
     // Now decrypted has exactly mod_len bytes with leading zeros if needed
     // Verify PKCS#1 v1.5 padding for SHA-256
@@ -90,11 +92,3 @@ rsa_verify_result_t rsa_verify_signature(
     }
 }
 
-rsa_verify_result_t verify_firmware(const uint8_t *firmware_data, size_t firmware_size) {
-    return rsa_verify_signature(
-        firmware_data, firmware_size,
-        firmware_signature, SIGNATURE_SIZE,
-        rsa_modulus, RSA_KEY_SIZE,
-        rsa_exponent
-    );
-}

@@ -1,22 +1,46 @@
 #include "boot_fw_update.h"
+#include "fw_metadata.h"
+#include "flash.h"
+#include "boot_cfg.h"
 
 extern uint32_t SystemCoreClock;
 extern void SystemCoreClock_DeInit(void);
 extern void NVIC_Disable_ISR(void);
- 
+
+
 // send acknowledgment
 static void send_ack(boot_handle_t *ctx, uint8_t ack) {
     ctx->comm_if->send(ctx->comm_if->comm_cfg, &ack, 1);
 }
 
-void send_mesage(boot_handle_t *ctx, const char *msg) {
+void send_message(boot_handle_t *ctx, const char *msg) {
     ctx->comm_if->send(ctx->comm_if->comm_cfg, (const uint8_t *)msg, strlen(msg));
 }
 
-static fw_status_t wait_for_command(boot_handle_t *ctx, uint8_t expected, uint8_t ack) {
+static fw_status_t wait_for_command(boot_handle_t *ctx, uint8_t expected,
+                                    uint8_t ack, uint32_t timeout_ms) {
     uint8_t cmd;
-    while (1) {
+
+    if (timeout_ms == 0) {
+        // blocking behavior
+        while (1) {
+            if (ctx->comm_if->recv(ctx->comm_if->comm_cfg, &cmd, 1) == 1) {
+                if (cmd == expected) {
+                    send_ack(ctx, ack);
+                    return FW_OK;
+                } else {
+                    return FW_ERR_INVALID_CMD;
+                }
+            }
+        }
+    }
+
+    // time out behavior
+    TIM2_SetTime(timeout_ms);
+    TIM2_Start();
+    while (!TIM2_IsTimeElapsed()) {
         if (ctx->comm_if->recv(ctx->comm_if->comm_cfg, &cmd, 1) == 1) {
+            TIM2_Stop();
             if (cmd == expected) {
                 send_ack(ctx, ack);
                 return FW_OK;
@@ -24,7 +48,10 @@ static fw_status_t wait_for_command(boot_handle_t *ctx, uint8_t expected, uint8_
                 return FW_ERR_INVALID_CMD;
             }
         }
+        delay_ms(1);
     }
+    TIM2_Stop();
+    return FW_ERR_TIMEOUT_CMD; /* timeout */
 }
 
 // Receive data into buffer
@@ -66,18 +93,15 @@ static fw_status_t recv_and_write_chunks( boot_handle_t *ctx, uint32_t flash_add
     return FW_OK;
 }
 
-static fw_status_t wait_and_erase(boot_handle_t *ctx) {
-    if (wait_for_command(ctx, ERASE_CMD, ERASE_ACK) != FW_OK) return FW_ERR_INVALID_CMD;
+static fw_status_t wait_and_erase(boot_handle_t *ctx, uint8_t flash_sector_num) {
+    if (wait_for_command(ctx, ERASE_CMD, ERASE_ACK,3000) != FW_OK) return FW_ERR_INVALID_CMD;
 
-    if (flash_erase_sector(APP_SECTION_NUMBER) != FLASH_OK) return FW_ERR_FLASH_ERASE;
+    if (flash_erase_sector(flash_sector_num) != FLASH_OK) return FW_ERR_FLASH_ERASE;
 
     return FW_OK;
 }
 
 void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
-    const char* msg = "Jumping to application\n";
-    boot_ctx->comm_if->send(boot_ctx->comm_if->comm_cfg,(const uint8_t *)msg,strlen(msg));
-    delay_ms(10);
     uint32_t app_msp = *(volatile uint32_t *)(app_addr + 0x00ul);
     uint32_t app_pc_init = *(volatile uint32_t *)(app_addr + 0x04ul); // reset handler's app
 
@@ -93,66 +117,70 @@ void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
 }
 
 
-fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr){
+fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32_t* fw_size) {
     // 1. Wait start
-    if (wait_for_command(ctx, START_CMD, START_ACK) != FW_OK) return FW_ERR_INVALID_CMD;
+    if (wait_for_command(ctx, START_CMD, START_ACK,3000) != FW_OK) return FW_ERR_INVALID_CMD;
 
     // 2. Receive firmware size + ACK
-    uint32_t fw_size = 0;
-    if (recv_and_ack_size(ctx, &fw_size, FW_SIZE_ACK) != FW_OK) return FW_ERR_COMM;
+    *fw_size = 0;
+    if (recv_and_ack_size(ctx, fw_size, FW_SIZE_ACK) != FW_OK) return FW_ERR_COMM;
 
     // 3. Wait erase + erase
-    if (wait_and_erase(ctx) != FW_OK) return FW_ERR_FLASH_ERASE;
+    if (wait_and_erase(ctx,flash_get_sector(flash_addr)) != FW_OK) return FW_ERR_FLASH_ERASE;
 
     // 4. Receive FW data chunks
-    if (recv_and_write_chunks(ctx, flash_addr, fw_size, CHUNK_ACK) != FW_OK)
-        return FW_ERR_FLASH_WRITE;
+    if (recv_and_write_chunks(ctx, flash_addr, *fw_size, CHUNK_ACK) != FW_OK) return FW_ERR_FLASH_WRITE;
 
     //  5. Wait for signature command + ACK
-    if (wait_for_command(ctx, SIGNATURE_CMD, SIGNATURE_ACK) != FW_OK) return FW_ERR_INVALID_CMD;
+    if (wait_for_command(ctx, SIGNATURE_CMD, SIGNATURE_ACK,3000) != FW_OK) return FW_ERR_INVALID_CMD;
     // 6. Receive signature size + ACK
     uint32_t sig_size = 0;
-    uint32_t sig_addr = flash_addr + fw_size;
+    uint32_t sig_addr = flash_addr + *fw_size;
 
     if (recv_and_ack_size(ctx, &sig_size, SIGNATURE_ACK) != FW_OK)  return FW_ERR_COMM;
 
     // 6. Receive signature data
     if (recv_and_write_chunks(ctx, sig_addr, sig_size, SIGNATURE_ACK) != FW_OK) return FW_ERR_FLASH_WRITE;
 
+    // 7. Store and write metadata
+    fw_metadata_t metadata;
+    metadata.version = FW_VERSION;
+    metadata.fw_addr = flash_addr;
+    metadata.fw_size = *fw_size;
+    metadata.sig_addr = sig_addr;
+    metadata.sig_len = sig_size;
+    metadata.flags = FW_FLAG_VALID;
+
+    if (flash_erase_sector(flash_get_sector(METADATA_ADDR)) != FLASH_OK) return FW_ERR_FLASH_ERASE; 
+    if (flash_write_blk( METADATA_ADDR, (uint8_t *)&metadata, sizeof(fw_metadata_t)) != FLASH_OK)   return FW_ERR_FLASH_WRITE;
+    
     return FW_OK;
 }
 
-void firmware_update(boot_handle_t *boot_ctx) {
+fw_status_t firmware_update(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t* fw_size ) {
     TIM2_Init();
-    TIM2_SetTime(10000);
     int received_flag = 0;
-    send_mesage(boot_ctx,"Waiting for firmware update command...\r\n");
-    TIM2_Start();
-    while (!TIM2_IsTimeElapsed()) {
-        if(wait_for_command(boot_ctx, UPDATE_FW_CMD, UPDATE_FW_ACK) == FW_OK) {
-            received_flag = 1;
-            send_ack(boot_ctx, UPDATE_FW_ACK);
-            break;
-        }
-        delay_ms(1);
+    send_message(boot_ctx,"Waiting for firmware update command...\r\n");
+
+    if (wait_for_command(boot_ctx, UPDATE_FW_CMD, UPDATE_FW_ACK, 10000) == FW_OK) {
+        received_flag = 1;
+        send_ack(boot_ctx, UPDATE_FW_ACK);
     }
 
     TIM2_Stop();
     TIM2_ClearFlag();
-    NVIC_ClearPendingIRQ(TIM2_IRQn);
-    NVIC_DisableIRQ(TIM2_IRQn);
 
     if (received_flag) {
-        fw_status_t st = receive_new_firmware(boot_ctx, APP_FLASH_ADDR);
+        fw_status_t st = receive_new_firmware(boot_ctx, fw_addr, fw_size);
         if (st != FW_OK) {
-            send_mesage(boot_ctx,"ERR: firmware update failed\r\n");
+            send_message(boot_ctx,"ERR: firmware update failed\r\n");
+            return st;
         } else {
-            send_mesage(boot_ctx,"OK: firmware received\r\n");
+            send_message(boot_ctx,"OK: firmware received\r\n");
+            return FW_OK;
         }
     } else {
-        send_mesage(boot_ctx,"jumping to application...\r\n");
-
-        // timeout, jump to app
-        enter_app(boot_ctx, APP_FLASH_ADDR);
+        send_message(boot_ctx,"No update command received, timeout\r\n");
+        return FW_ERR_COMM;
     }
 }

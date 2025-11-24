@@ -53,6 +53,23 @@ static int send_cmd_and_wait_ack(SerialHandle *serial, uint8_t cmd,
     return 0;
 }
 
+static int wait_ack(SerialHandle *serial, uint8_t expected_ack, int timeout_ms) {
+    uint8_t ack = 0;
+
+    int ret = read_with_timeout(serial, &ack, 1, timeout_ms);
+    if (ret != 1) {
+        printf("Error: timeout waiting for ACK 0x%02X\n", expected_ack);
+        return -1;
+    }
+
+    if (ack != expected_ack) {
+        printf("Error: ACK mismatch (got 0x%02X, expected 0x%02X)\n",
+               ack, expected_ack);
+        return -1;
+    }
+
+    return 0;
+}
 static int send_block_and_wait_ack(SerialHandle *serial, const uint8_t *buf, 
             size_t len, uint8_t expected_ack) {
     if (serial_write(serial, buf, len) != (int)len) {

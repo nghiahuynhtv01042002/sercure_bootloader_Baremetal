@@ -14,11 +14,24 @@ static const uint8_t RSA_PKCS1_SHA256_PREFIX[RSA_PKCS1_SHA256_PREFIX_LEN] = {
     0x00, 0x04, 0x20
 };
 
+// typedef enum {
+//     RSA_VERIFY_OK = 0,
+//     RSA_VERIFY_ERROR = -1,
+//     RSA_VERIFY_INVALID_SIGNATURE = -2,
+//     RSA_VERIFY_PADDING_ERROR = -3
+// } rsa_verify_result_t;
+
 typedef enum {
     RSA_VERIFY_OK = 0,
     RSA_VERIFY_ERROR = -1,
     RSA_VERIFY_INVALID_SIGNATURE = -2,
-    RSA_VERIFY_PADDING_ERROR = -3
+    RSA_VERIFY_PADDING_ERROR = -3,
+    RSA_VERIFY_INVALID_INPUT = -4,
+    RSA_COVERT_SIGNATURE_ERROR = -5,
+    RSA_COVERT_MODULUS_ERROR = -6,
+    RSA_COVERT_EXPONENT_ERROR = -7,
+    RSA_KEY_OPERATION_ERROR = -8,
+    RSA_CONVERT_KEY_OPERATION_ERROR = -9
 } rsa_verify_result_t;
 
 /**
@@ -39,5 +52,4 @@ rsa_verify_result_t rsa_verify_signature(
     const uint8_t *modulus, size_t mod_len,
     uint32_t exponent
 );
-rsa_verify_result_t verify_firmware(const uint8_t *firmware_data, size_t firmware_size);
 #endif // RSA_VERIFY_H
