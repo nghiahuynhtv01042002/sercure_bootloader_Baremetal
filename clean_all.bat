@@ -4,6 +4,8 @@ rmdir /s /q build 2>nul
 
 echo delete custom-tool\firmware-flash\firmware-flash-build ...
 rmdir /s /q custom-tool\firmware-flash\firmware-flash-build 2>nul
+echo delete custom-tool\firmware-flash-cpp\firmware-flash-build ...
+rmdir /s /q custom-tool\firmware-flash-cpp\firmware-flash-build 2>nul
 
 echo clean file in custom-tool\gen-rsakeys
 pushd custom-tool\gen-rsakeys
