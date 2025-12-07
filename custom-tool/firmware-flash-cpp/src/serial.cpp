@@ -108,3 +108,54 @@ void serial::close()
         hSerial = INVALID_HANDLE_VALUE;
     }
 }
+
+void serial::start_async_read() {
+    if (running) return;
+    running = true;
+
+    reader = std::thread([this]() {
+        uint8_t buf[128];
+
+        while (running) {
+            int n = read(buf, sizeof(buf));
+            if (n > 0) {
+                // filter ACK bytes (0x00..0x1F except '\r','\n')
+                bool printable = true;
+                for (int i = 0; i < n; i++) {
+                    if (buf[i] < 0x20 && buf[i] != '\r' && buf[i] != '\n') {
+                        printable = false;
+                    }
+                }
+
+                if (printable) {
+                    std::string s((char*)buf, (char*)buf + n);
+                    std::cout << "[MCU] " << s;
+                    std::cout.flush();
+                }
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        }
+    });
+}
+
+void serial::stop_async_read() {
+    running = false;
+    if (reader.joinable())
+        reader.join();
+}
+// void serial::start_user_input() {
+//     std::thread([this]() {
+//         while (true) {
+//             std::string line;
+
+//             if (!std::getline(std::cin, line)) {
+//                 break;
+//             }
+
+//             line.push_back('\n');
+//             this->write(reinterpret_cast<const uint8_t*>(line.c_str()),
+//                         (uint32_t)line.size());
+//         }
+//     }).detach();
+// }

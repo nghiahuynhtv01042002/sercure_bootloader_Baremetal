@@ -40,9 +40,17 @@ int main(int argc, char *argv[])
     sleep_ms(100);
 
     Sender sender(ser);
+    uint8_t cmd;
+    std::cout << "Sending update signal...\n"
+          << "Enter command:\n"
+          << "  y/Y - normal update\n"
+          << "  f/F - force update\n"
+          << "  s/S - skip update\n> ";
+    std::cout << "Enter command: ";
+    std::cin.get(reinterpret_cast<char&>(cmd));
 
     // 1. Send update signal
-    if (!sender.sendUpdateSignal()) {
+    if (!sender.sendUpdateSignal(cmd)) {
         std::cout << "Failed to send update signal\n";
         return -2;
     }

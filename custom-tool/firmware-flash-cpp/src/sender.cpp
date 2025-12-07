@@ -192,12 +192,12 @@ bool Sender::sendSignature(const std::string &sig_path)
     return true;
 }
 
-bool Sender::sendUpdateSignal()
+bool Sender::sendUpdateSignal(uint8_t cmd)
 {
     flushSerial(300);
 
     std::cout << "Sending update signal...\n";
-    if (!sendCmdAndWaitAck(UPDATE_FW_CMD, UPDATE_FW_ACK, ACK_TIMEOUT_MS)) {
+    if (!sendCmdAndWaitAck(cmd, UPDATE_FW_ACK, ACK_TIMEOUT_MS)) {
         std::cerr << "Update signal failed\n";
         return false;
     }

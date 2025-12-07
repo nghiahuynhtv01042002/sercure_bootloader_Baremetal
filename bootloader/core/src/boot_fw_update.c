@@ -54,6 +54,51 @@ static fw_status_t wait_for_command(boot_handle_t *ctx, uint8_t expected,
     return FW_ERR_TIMEOUT_CMD; /* timeout */
 }
 
+static fw_status_t wait_for_update_signal(boot_handle_t *ctx, uint32_t timeout_ms) {
+    uint8_t cmd;
+    uint32_t start = 0;
+
+    if (timeout_ms > 0) {
+        TIM2_SetTime(timeout_ms);
+        TIM2_Start();
+    }
+
+    while (1) {
+        if (ctx->comm_if->recv(ctx->comm_if->comm_cfg, &cmd, 1) == 1) {
+            if (timeout_ms > 0) TIM2_Stop();
+            if (cmd == UPDATE_FW_CMD1 || cmd == UPDATE_FW_CMD2) {
+                send_ack(ctx, UPDATE_FW_ACK);
+                // change boot mode to update
+                ctx->state = BOOT_STATE_WAIT_UPDATE;
+                return FW_OK;
+            }
+            else if ( cmd == FORCE_UPDATE_FW_CMD1 || cmd == FORCE_UPDATE_FW_CMD2) {
+                send_ack(ctx, UPDATE_FW_ACK);
+                // change boot mode to force update
+                ctx->state = BOOT_STATE_FORCE_UPDATE;
+                return FW_OK;
+            }
+            else if (cmd == SKIP_FW_UPDATE_CMD1 || cmd == SKIP_FW_UPDATE_CMD2) {
+                send_ack(ctx, SKIP_FW_UPDATE_ACK);
+                // change boot mode to normal
+                ctx->state = BOOT_STATE_JUMP_TO_APP;
+                return FW_OK;
+            } 
+            else {
+                return FW_ERR_INVALID_CMD;
+            }
+        }
+        if (timeout_ms > 0 && TIM2_IsTimeElapsed()) {
+            TIM2_Stop();
+            ctx->state = BOOT_STATE_JUMP_TO_APP;
+            return FW_ERR_TIMEOUT_CMD;
+        }
+        if (timeout_ms == 0) continue;
+        delay_ms(1);
+    }
+}
+
+
 // Receive data into buffer
 static fw_status_t recv_data(boot_handle_t *ctx, uint8_t *buf, uint32_t size) {
     uint32_t received = 0;
@@ -162,9 +207,8 @@ fw_status_t firmware_update(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t*
     int received_flag = 0;
     send_message(boot_ctx,"Waiting for firmware update command...\r\n");
 
-    if (wait_for_command(boot_ctx, UPDATE_FW_CMD, UPDATE_FW_ACK, 10000) == FW_OK) {
+    if (wait_for_update_signal(boot_ctx, 10000) == FW_OK) {
         received_flag = 1;
-        send_ack(boot_ctx, UPDATE_FW_ACK);
     }
 
     TIM2_Stop();

@@ -9,7 +9,7 @@ class Sender {
 public:
     explicit Sender(serial &ser);
 
-    bool sendUpdateSignal();
+    bool sendUpdateSignal(uint8_t cmd);
     bool sendFirmware(const std::string &filepath, const std::string &sig_path);
 
 private:

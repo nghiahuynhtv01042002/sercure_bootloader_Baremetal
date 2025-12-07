@@ -3,22 +3,34 @@
 #include <stdint.h>
 #include "boot_cfg.h"
 
-#define START_CMD        (0x55)
-#define START_ACK        (0xAA)
+// Start sequence
+#define START_CMD       0x55
+#define START_ACK       0xAA
 
+// Flash erase
+#define ERASE_CMD       0xEC
+#define ERASE_ACK       0x13
 
-#define ERASE_CMD        (0xEC)
-#define ERASE_ACK        (0x13)
+// Firmware chunk
+#define CHUNK_SIZE      256
+#define FW_SIZE_ACK     0xAA
+#define CHUNK_ACK       0xCC
 
-#define FW_SIZE_ACK      (0xAA)
-#define CHUNK_ACK        (0xCC)
-#define CHUNK_SIZE       (256)
+// Signature
+#define SIGNATURE_CMD   0x53
+#define SIGNATURE_ACK   0xAC
 
-#define SIGNATURE_CMD    (0x53)
-#define SIGNATURE_ACK    (0xAC)
+// Update firmware commands
+#define UPDATE_FW_CMD1  'y'
+#define UPDATE_FW_CMD2  'Y'
+#define FORCE_UPDATE_FW_CMD1 'f'
+#define FORCE_UPDATE_FW_CMD2 'F'
+#define SKIP_FW_UPDATE_CMD1  's'
+#define SKIP_FW_UPDATE_CMD2  'S'
 
-#define UPDATE_FW_CMD    (0x70)
-#define UPDATE_FW_ACK    (0x8F)
+// ACK for all firmware update commands
+#define UPDATE_FW_ACK   0x8F
+#define SKIP_FW_UPDATE_ACK UPDATE_FW_ACK
 
 typedef enum {
     FW_OK = 0,
