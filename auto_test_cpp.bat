@@ -21,7 +21,7 @@ popd
 echo ###########################################
 echo build Bootloader
 echo ###########################################
-call auto_build.bat bootloader
+call auto_build.bat flash_boot
 
 echo ###########################################
 echo build flash_fw_cli
@@ -38,7 +38,8 @@ echo ###########################################
 set app_path="build\application\application.bin"
 set sig_path=".\custom-tool\gen-rsakeys\signature.sig"
 set flash_fw_cli=".\custom-tool\firmware-flash-cpp\firmware-flash-build\firmware_sender.exe"
+echo "press any key to start running cli tool..."
+pause
 
-cmake --build build --target flash_boot
 echo %flash_fw_cli% COM3 %app_path% %sig_path%
 %flash_fw_cli% COM3 %app_path% %sig_path% 

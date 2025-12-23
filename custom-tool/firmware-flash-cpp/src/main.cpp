@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
     sleep_ms(100);
 
     Sender sender(ser);
-    std::cout <<  "wait Signal from MCU...\n";
+    std::cout <<  "Wait signal from MCU...\n";
     if (sender.waitAck(0x88, 10000) == false) {
         std::cout << "Error: No signal from MCU\n";
         return -4;
@@ -53,7 +53,12 @@ int main(int argc, char *argv[])
           << "  s/S - skip update\n> ";
     std::cout << "Enter command: ";
     std::cin.get(reinterpret_cast<char&>(cmd));
-
+    // if skip, just exit
+    if (cmd == 's' || cmd == 'S') {
+        std::cout << "Skipping firmware update.\n";
+        ser.close();
+        return 0;
+    }
     // 1. Send update signal
     if (!sender.sendUpdateSignal(cmd)) {
         std::cout << "Failed to send update signal\n";

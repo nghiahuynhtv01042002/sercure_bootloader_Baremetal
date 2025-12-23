@@ -11,8 +11,7 @@ extern void SystemCoreClock_DeInit(void);
 extern void NVIC_Disable_ISR(void);
 extern int8_t boot_config(boot_handle_t* boot_ctx);
 extern int8_t boot_init(boot_handle_t* boot_ctx);
-extern fw_status_t firmware_update(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t* fw_size );
-extern rsa_verify_result_t verify_firmware(uint32_t flash_addr, uint32_t fw_size);
+fw_status_t receive_fw_update_request(boot_handle_t *boot_ctx);
 extern void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr);
 extern void send_message(boot_handle_t *ctx, const char *msg);
 extern void print_verify_result(rsa_verify_result_t result);
@@ -73,36 +72,16 @@ int boot_main(void) {
     boot_config(&boot_ctx);
     boot_init(&boot_ctx);
     uint32_t fw_addr = FW_FLASH_ADDR;
-    uint32_t fw_size = 0;
-    int8_t is_update = 0;
+    uint32_t fw_size = read_fw_size_from_flash();
 
     // send acknowledgment after boot init
     boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg, (const uint8_t[]){BOOT_FINISH_SIGNAL}, 1);
-    
-    fw_status_t fw_update_st = firmware_update(&boot_ctx,fw_addr,&fw_size);
-    if (fw_update_st == FW_OK && fw_size > 0) {
-        send_message(&boot_ctx,"Firmware update successful, ready to boot.\r\n");
-        is_update = 1;
-    } else {
-        send_message(&boot_ctx,"No valid firmware update, checking stored image...\r\n");
-        is_update = 0;
-    }
+    send_message(&boot_ctx,"Bootloader is running...\r\n");
+    fw_status_t fw_st = receive_fw_update_request(&boot_ctx);
+    fw_st = handle_update_request(&boot_ctx, fw_addr, &fw_size);
+    fw_st = process_boot_state(&boot_ctx, fw_addr, &fw_size);
+    // handle errors here
 
-    fw_size = read_fw_size_from_flash();
-    rsa_verify_result_t vr = verify_firmware(fw_addr, fw_size);
-    // print_verify_result(vr);
-    printf("Firmware size: %lu bytes\r\n", (unsigned long)fw_size);
-    if (vr == RSA_VERIFY_OK) {
-        send_message(&boot_ctx,"Entering application...\r\n");
-        delay_ms(100);
-        enter_app(&boot_ctx, fw_addr);
-    } else {
-        send_message(&boot_ctx,"Firmware verification failed.\r\n");
-    }
-    if(is_update == 1){
-        send_message(&boot_ctx,"Boot failed after update.\r\n");
-    } else {
-        send_message(&boot_ctx,"No valid bootable image found.\r\n");
-    }
     return 0;
 }
+

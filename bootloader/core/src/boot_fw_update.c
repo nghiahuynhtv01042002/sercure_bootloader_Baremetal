@@ -2,7 +2,7 @@
 #include "fw_metadata.h"
 #include "flash.h"
 #include "boot_cfg.h"
-
+#include "rsa2048.h"
 extern uint32_t SystemCoreClock;
 extern void SystemCoreClock_DeInit(void);
 extern void NVIC_Disable_ISR(void);
@@ -53,51 +53,6 @@ static fw_status_t wait_for_command(boot_handle_t *ctx, uint8_t expected,
     TIM2_Stop();
     return FW_ERR_TIMEOUT_CMD; /* timeout */
 }
-
-static fw_status_t wait_for_update_signal(boot_handle_t *ctx, uint32_t timeout_ms) {
-    uint8_t cmd;
-    uint32_t start = 0;
-
-    if (timeout_ms > 0) {
-        TIM2_SetTime(timeout_ms);
-        TIM2_Start();
-    }
-
-    while (1) {
-        if (ctx->comm_if->recv(ctx->comm_if->comm_cfg, &cmd, 1) == 1) {
-            if (timeout_ms > 0) TIM2_Stop();
-            if (cmd == UPDATE_FW_CMD1 || cmd == UPDATE_FW_CMD2) {
-                send_ack(ctx, UPDATE_FW_ACK);
-                // change boot mode to update
-                ctx->state = BOOT_STATE_WAIT_UPDATE;
-                return FW_OK;
-            }
-            else if ( cmd == FORCE_UPDATE_FW_CMD1 || cmd == FORCE_UPDATE_FW_CMD2) {
-                send_ack(ctx, UPDATE_FW_ACK);
-                // change boot mode to force update
-                ctx->state = BOOT_STATE_FORCE_UPDATE;
-                return FW_OK;
-            }
-            else if (cmd == SKIP_FW_UPDATE_CMD1 || cmd == SKIP_FW_UPDATE_CMD2) {
-                send_ack(ctx, SKIP_FW_UPDATE_ACK);
-                // change boot mode to normal
-                ctx->state = BOOT_STATE_JUMP_TO_APP;
-                return FW_OK;
-            } 
-            else {
-                return FW_ERR_INVALID_CMD;
-            }
-        }
-        if (timeout_ms > 0 && TIM2_IsTimeElapsed()) {
-            TIM2_Stop();
-            ctx->state = BOOT_STATE_JUMP_TO_APP;
-            return FW_ERR_TIMEOUT_CMD;
-        }
-        if (timeout_ms == 0) continue;
-        delay_ms(1);
-    }
-}
-
 
 // Receive data into buffer
 static fw_status_t recv_data(boot_handle_t *ctx, uint8_t *buf, uint32_t size) {
@@ -161,6 +116,49 @@ void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
     app_entry();
 }
 
+static fw_status_t wait_for_update_signal(boot_handle_t *ctx, uint32_t timeout_ms) {
+    uint8_t cmd;
+    uint32_t start = 0;
+
+    if (timeout_ms > 0) {
+        TIM2_SetTime(timeout_ms);
+        TIM2_Start();
+    }
+
+    while (1) {
+        if (ctx->comm_if->recv(ctx->comm_if->comm_cfg, &cmd, 1) == 1) {
+            if (timeout_ms > 0) TIM2_Stop();
+            if (cmd == UPDATE_FW_CMD1 || cmd == UPDATE_FW_CMD2) {
+                send_ack(ctx, UPDATE_FW_ACK);
+                // change boot mode to update
+                ctx->state = BOOT_STATE_NORMAL_UPDATE;
+                return FW_OK;
+            }
+            else if ( cmd == FORCE_UPDATE_FW_CMD1 || cmd == FORCE_UPDATE_FW_CMD2) {
+                send_ack(ctx, UPDATE_FW_ACK);
+                // change boot mode to force update
+                ctx->state = BOOT_STATE_FORCE_UPDATE;
+                return FW_OK;
+            }
+            else if (cmd == SKIP_FW_UPDATE_CMD1 || cmd == SKIP_FW_UPDATE_CMD2) {
+                send_ack(ctx, SKIP_FW_UPDATE_ACK);
+                // change boot mode to normal
+                ctx->state = BOOT_STATE_JUMP_TO_APP;
+                return FW_OK;
+            } 
+            else {
+                return FW_ERR_INVALID_CMD;
+            }
+        }
+        if (timeout_ms > 0 && TIM2_IsTimeElapsed()) {
+            TIM2_Stop();
+            ctx->state = BOOT_STATE_JUMP_TO_APP;
+            return FW_ERR_TIMEOUT_CMD;
+        }
+        if (timeout_ms == 0) continue;
+        delay_ms(1);
+    }
+}
 
 fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32_t* fw_size) {
     // 1. Wait start
@@ -202,29 +200,69 @@ fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32
     return FW_OK;
 }
 
-fw_status_t firmware_update(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t* fw_size ) {
+fw_status_t receive_fw_update_request(boot_handle_t *boot_ctx) {
     TIM2_Init();
     int received_flag = 0;
-    send_message(boot_ctx,"Waiting for firmware update command...\r\n");
-
-    if (wait_for_update_signal(boot_ctx, 10000) == FW_OK) {
+    // send_message(boot_ctx,"Waiting for firmware update command...\r\n");
+    boot_state_t current_boot_state = BOOT_STATE_IDLE;
+    fw_status_t status = FW_ERR_COMM;
+    status = wait_for_update_signal(boot_ctx, 5000);
+    if (status == FW_OK) {
         received_flag = 1;
+        current_boot_state = boot_ctx->state;
     }
 
     TIM2_Stop();
     TIM2_ClearFlag();
-
-    if (received_flag) {
-        fw_status_t st = receive_new_firmware(boot_ctx, fw_addr, fw_size);
-        if (st != FW_OK) {
-            send_message(boot_ctx,"ERR: firmware update failed\r\n");
-            return st;
-        } else {
-            send_message(boot_ctx,"OK: firmware received\r\n");
+    return status;
+}
+fw_status_t handle_update_request(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t* fw_size ) {
+    fw_status_t fw_st;
+    switch (boot_ctx->state)
+    {
+        case BOOT_STATE_NORMAL_UPDATE:
+            fw_st = receive_new_firmware(boot_ctx, fw_addr, fw_size);
+            boot_ctx->state = BOOT_STATE_VERIFY_SIGNATURE;
+            return fw_st;
+            break;
+        case BOOT_STATE_FORCE_UPDATE:
+            fw_st = receive_new_firmware(boot_ctx, fw_addr, fw_size);
+            boot_ctx->state = BOOT_STATE_JUMP_TO_APP;
+            return fw_st;
+            break;
+        case BOOT_STATE_JUMP_TO_APP:
             return FW_OK;
-        }
+            break;
+        default:
+            return FW_ERR_INVALID_CMD;
+            break;
+    }
+}
+
+fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t *fw_size) {
+    rsa_verify_result_t vr;
+    switch (boot_ctx->state)
+    {
+        case BOOT_STATE_VERIFY_SIGNATURE:
+            fw_size = read_fw_size_from_flash();
+            vr = verify_firmware(fw_addr, fw_size);
+            break;
+        case BOOT_STATE_FORCE_UPDATE:
+            vr = RSA_VERIFY_OK;
+            break;
+        case BOOT_STATE_JUMP_TO_APP:
+            fw_size = read_fw_size_from_flash();
+            vr = verify_firmware(fw_addr, fw_size);
+            break;
+        default:
+            return FW_ERR_INVALID_CMD;
+            break;
+    }
+    if (vr == RSA_VERIFY_OK) {
+        enter_app(boot_ctx, fw_addr);
+        return FW_OK;
     } else {
-        send_message(boot_ctx,"No update command received, timeout\r\n");
-        return FW_ERR_COMM;
+        send_message(boot_ctx,"Signature is INVALID. \r\n");
+        return FW_ERR_INVALID_SIGNATURE;
     }
 }
