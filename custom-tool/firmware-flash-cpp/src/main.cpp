@@ -40,6 +40,11 @@ int main(int argc, char *argv[])
     sleep_ms(100);
 
     Sender sender(ser);
+    std::cout <<  "wait Signal from MCU...\n";
+    if (sender.waitAck(0x88, 10000) == false) {
+        std::cout << "Error: No signal from MCU\n";
+        return -4;
+    }
     uint8_t cmd;
     std::cout << "Sending update signal...\n"
           << "Enter command:\n"

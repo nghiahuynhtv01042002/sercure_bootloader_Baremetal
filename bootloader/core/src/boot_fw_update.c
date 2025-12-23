@@ -176,7 +176,7 @@ fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32
     // 4. Receive FW data chunks
     if (recv_and_write_chunks(ctx, flash_addr, *fw_size, CHUNK_ACK) != FW_OK) return FW_ERR_FLASH_WRITE;
 
-    //  5. Wait for signature command + ACK
+    // 5. Wait for signature command + ACK
     if (wait_for_command(ctx, SIGNATURE_CMD, SIGNATURE_ACK,3000) != FW_OK) return FW_ERR_INVALID_CMD;
     // 6. Receive signature size + ACK
     uint32_t sig_size = 0;

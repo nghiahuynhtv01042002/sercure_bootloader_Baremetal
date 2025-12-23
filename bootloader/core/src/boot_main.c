@@ -75,8 +75,10 @@ int boot_main(void) {
     uint32_t fw_addr = FW_FLASH_ADDR;
     uint32_t fw_size = 0;
     int8_t is_update = 0;
-    send_message(&boot_ctx,"Bootloader started...\r\n");
 
+    // send acknowledgment after boot init
+    boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg, (const uint8_t[]){BOOT_FINISH_SIGNAL}, 1);
+    
     fw_status_t fw_update_st = firmware_update(&boot_ctx,fw_addr,&fw_size);
     if (fw_update_st == FW_OK && fw_size > 0) {
         send_message(&boot_ctx,"Firmware update successful, ready to boot.\r\n");

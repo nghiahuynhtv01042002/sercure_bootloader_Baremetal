@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include "boot_cfg.h"
 
+// boot finish signal
+#define BOOT_FINISH_SIGNAL   0x88
 // Start sequence
 #define START_CMD       0x55
 #define START_ACK       0xAA

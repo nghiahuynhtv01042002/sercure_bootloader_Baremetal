@@ -11,6 +11,8 @@ public:
 
     bool sendUpdateSignal(uint8_t cmd);
     bool sendFirmware(const std::string &filepath, const std::string &sig_path);
+    bool waitAck(uint8_t expected_ack, int timeout_ms);
+
 
 private:
     serial &ser;
@@ -18,7 +20,6 @@ private:
     void flushSerial(int timeout_ms);
     int  readWithTimeout(uint8_t *data, size_t len, int timeout_ms);
     bool sendCmdAndWaitAck(uint8_t cmd, uint8_t expected_ack, int timeout_ms);
-    bool waitAck(uint8_t expected_ack, int timeout_ms);
     bool sendBlockAndWaitAck(const uint8_t *buf, size_t len, uint8_t expected_ack);
     bool send4BytesSize(uint32_t size, uint8_t expected_ack);
     bool sendDataChunk(FILE *fw, uint32_t file_size);

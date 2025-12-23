@@ -239,7 +239,7 @@ bool Sender::sendFirmware(const std::string &filepath,
     if (!sendDataChunk(fw, file_size))
         goto fail;
 
-    // 5. Optional signature
+    // 5. Send signature
     if (!sig_path.empty())
         if (!sendSignature(sig_path))
             goto fail;
