@@ -178,3 +178,18 @@ uint8_t flash_get_sector(uint32_t addr) {
     else if (addr < 0x08080000UL) return 7; // Sector 7
     else return -1;                         // Out of flash
 }
+
+int flash_copy_firmware(uint32_t staging_addr, uint32_t active_addr, uint32_t fw_size) {
+    if (fw_size == 0) return -1;
+
+    int8_t sector = flash_get_sector(active_addr);
+    if (sector == -1) return -1;
+
+    if (flash_erase_sector((uint8_t)sector) != FLASH_OK) {
+        return -1;
+    }
+    if (flash_write_blk(active_addr, (uint8_t *)staging_addr, fw_size) != FLASH_OK) {
+        return -1;
+    }
+    return 0;
+}

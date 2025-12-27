@@ -41,6 +41,7 @@ typedef enum {
     FW_ERR_FLASH_ERASE,
     FW_ERR_FLASH_WRITE,
     FW_ERR_INVALID_CMD,
+    FW_ERR_COPY_FW,
     FW_ERR_INVALID_SIGNATURE, 
 } fw_status_t;
 
@@ -48,8 +49,8 @@ typedef void(*func_ptr)(void);
 
 fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32_t* fw_size);
 fw_status_t receive_fw_update_request(boot_handle_t *boot_ctx);
-fw_status_t handle_update_request(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t* fw_size );
-fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t *fw_size);
+fw_status_t handle_update_request(boot_handle_t *boot_ctx, uint32_t *fw_addr, uint32_t* fw_size );
+fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t *fw_addr, uint32_t *fw_size);
 void send_message(boot_handle_t *ctx, const char *msg);
 void enter_app(boot_handle_t *boot_ctx, uint32_t app_addr);
 #endif // BOOT_FW_UPDATE_H

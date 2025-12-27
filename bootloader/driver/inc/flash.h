@@ -53,4 +53,5 @@ int flash_write_word(uint32_t addr, uint32_t data);
 int flash_write_blk(uint32_t addr, uint8_t *data, uint32_t data_size);
 uint32_t flash_read_word(uint32_t addr);
 uint8_t flash_get_sector(uint32_t addr);
+int flash_copy_firmware(uint32_t staging_addr, uint32_t active_addr, uint32_t fw_size);
 #endif // FLASH_H

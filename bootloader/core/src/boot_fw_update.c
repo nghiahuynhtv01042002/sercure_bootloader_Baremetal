@@ -3,6 +3,7 @@
 #include "flash.h"
 #include "boot_cfg.h"
 #include "rsa2048.h"
+#include "boot_verify_signature.h"
 extern uint32_t SystemCoreClock;
 extern void SystemCoreClock_DeInit(void);
 extern void NVIC_Disable_ISR(void);
@@ -111,6 +112,8 @@ void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
     __asm volatile("msr msp, %0" : : "r" (app_msp) : ); //base on reset handler set MSP or not
     // RCC deinit
     SystemCoreClock_DeInit();
+    // set VTOR for application
+    // SCB_VTOR = app_addr;
     // Call reset hanlder of application
     func_ptr app_entry = (func_ptr)app_pc_init;
     app_entry();
@@ -118,7 +121,6 @@ void enter_app(boot_handle_t *boot_ctx,uint32_t app_addr) {
 
 static fw_status_t wait_for_update_signal(boot_handle_t *ctx, uint32_t timeout_ms) {
     uint8_t cmd;
-    uint32_t start = 0;
 
     if (timeout_ms > 0) {
         TIM2_SetTime(timeout_ms);
@@ -202,35 +204,34 @@ fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32
 
 fw_status_t receive_fw_update_request(boot_handle_t *boot_ctx) {
     TIM2_Init();
-    int received_flag = 0;
     // send_message(boot_ctx,"Waiting for firmware update command...\r\n");
-    boot_state_t current_boot_state = BOOT_STATE_IDLE;
     fw_status_t status = FW_ERR_COMM;
     status = wait_for_update_signal(boot_ctx, 5000);
-    if (status == FW_OK) {
-        received_flag = 1;
-        current_boot_state = boot_ctx->state;
-    }
-
     TIM2_Stop();
     TIM2_ClearFlag();
     return status;
 }
-fw_status_t handle_update_request(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t* fw_size ) {
+
+fw_status_t handle_update_request(boot_handle_t *boot_ctx, uint32_t* fw_addr, uint32_t* fw_size ) {
     fw_status_t fw_st;
     switch (boot_ctx->state)
     {
         case BOOT_STATE_NORMAL_UPDATE:
-            fw_st = receive_new_firmware(boot_ctx, fw_addr, fw_size);
+            // receive new firmware into staging bank (inactive bank )
+            *fw_addr = FW_STAGING_ADDR;
+            fw_st = receive_new_firmware(boot_ctx, *fw_addr, fw_size);
             boot_ctx->state = BOOT_STATE_VERIFY_SIGNATURE;
             return fw_st;
             break;
         case BOOT_STATE_FORCE_UPDATE:
-            fw_st = receive_new_firmware(boot_ctx, fw_addr, fw_size);
+            // flash new firmwaare dirvectly to active bank
+            *fw_addr = FW_FLASH_ADDR;
+            fw_st = receive_new_firmware(boot_ctx, *fw_addr, fw_size);
             boot_ctx->state = BOOT_STATE_JUMP_TO_APP;
             return fw_st;
             break;
         case BOOT_STATE_JUMP_TO_APP:
+            *fw_addr = read_fw_addr_from_flash();
             return FW_OK;
             break;
         default:
@@ -239,27 +240,47 @@ fw_status_t handle_update_request(boot_handle_t *boot_ctx, uint32_t fw_addr, uin
     }
 }
 
-fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t fw_addr, uint32_t *fw_size) {
+fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t* fw_addr, uint32_t *fw_size) {
     rsa_verify_result_t vr;
+    int jump_to_app = 0;
     switch (boot_ctx->state)
     {
         case BOOT_STATE_VERIFY_SIGNATURE:
-            fw_size = read_fw_size_from_flash();
-            vr = verify_firmware(fw_addr, fw_size);
+            *fw_size = read_fw_size_from_flash();
+            vr = verify_firmware(*fw_addr, *fw_size);
+            if (vr == RSA_VERIFY_OK) {
+                // write firmware to active bank
+                if(flash_copy_firmware(FW_STAGING_ADDR,FW_FLASH_ADDR,*fw_size)!= FLASH_OK) {
+                    return FW_ERR_COPY_FW;
+                }
+                else {
+                    *fw_addr = FW_FLASH_ADDR;
+                    jump_to_app = 1;
+
+                }
+            } else {
+                jump_to_app = 0;
+            }
             break;
         case BOOT_STATE_FORCE_UPDATE:
             vr = RSA_VERIFY_OK;
+            jump_to_app = 1;
             break;
         case BOOT_STATE_JUMP_TO_APP:
-            fw_size = read_fw_size_from_flash();
-            vr = verify_firmware(fw_addr, fw_size);
+            *fw_size = read_fw_size_from_flash();
+            vr = verify_firmware(*fw_addr, *fw_size);
+            if (vr == RSA_VERIFY_OK) {
+                jump_to_app = 1;
+            } else {
+                jump_to_app = 0;
+            }
             break;
         default:
             return FW_ERR_INVALID_CMD;
             break;
     }
-    if (vr == RSA_VERIFY_OK) {
-        enter_app(boot_ctx, fw_addr);
+    if(jump_to_app) {
+        enter_app(boot_ctx, *fw_addr);
         return FW_OK;
     } else {
         send_message(boot_ctx,"Signature is INVALID. \r\n");

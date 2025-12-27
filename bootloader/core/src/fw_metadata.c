@@ -7,3 +7,8 @@ uint32_t read_fw_size_from_flash(void) {
     fw_metadata_t *md = (fw_metadata_t *)METADATA_ADDR;
     return md->fw_size;  
 }
+
+uint32_t read_fw_addr_from_flash(void) {
+    fw_metadata_t *md = (fw_metadata_t *)METADATA_ADDR;
+    return md->fw_addr;
+}

@@ -23,5 +23,6 @@ typedef struct {
 #pragma pack(pop)
 
 uint32_t read_fw_size_from_flash(void);
+uint32_t read_fw_addr_from_flash(void);
 
 #endif // FW_METADATA_H
