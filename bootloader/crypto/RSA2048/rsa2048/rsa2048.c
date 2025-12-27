@@ -42,7 +42,7 @@ rsa_verify_result_t rsa_verify_signature(
     status = bigint_to_bytes(&result_bigint, decrypted, mod_len);
     if (status != BIGINT_OK) return RSA_CONVERT_KEY_OPERATION_ERROR;
     
-    // Now decrypted has exactly mod_len bytes with leading zeros if needed
+    
     // Verify PKCS#1 v1.5 padding for SHA-256
     // Check padding structure: 0x00 0x01 FF...FF 0x00 DigestInfo Hash
     if (decrypted[0] != 0x00 || decrypted[1] != 0x01) {

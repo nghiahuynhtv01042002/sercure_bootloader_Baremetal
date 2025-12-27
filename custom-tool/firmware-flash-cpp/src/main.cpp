@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     sleep_ms(100);
 
     Sender sender(ser);
-    std::cout <<  "Wait signal from MCU...\n";
+    std::cout <<  "Wait signal from MCU. Please press reset button\n";
     if (sender.waitAck(0x88, 10000) == false) {
         std::cout << "Error: No signal from MCU\n";
         return -4;

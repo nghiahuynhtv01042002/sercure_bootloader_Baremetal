@@ -37,7 +37,7 @@
 typedef enum {
     FW_OK = 0,
     FW_ERR_COMM,
-    FW_ERR_TIMEOUT_CMD,
+    FW_TIMEOUT_CMD,
     FW_ERR_FLASH_ERASE,
     FW_ERR_FLASH_WRITE,
     FW_ERR_INVALID_CMD,

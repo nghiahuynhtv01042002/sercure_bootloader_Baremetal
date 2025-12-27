@@ -52,7 +52,7 @@ static fw_status_t wait_for_command(boot_handle_t *ctx, uint8_t expected,
         delay_ms(1);
     }
     TIM2_Stop();
-    return FW_ERR_TIMEOUT_CMD; /* timeout */
+    return FW_TIMEOUT_CMD; /* timeout */
 }
 
 // Receive data into buffer
@@ -155,7 +155,7 @@ static fw_status_t wait_for_update_signal(boot_handle_t *ctx, uint32_t timeout_m
         if (timeout_ms > 0 && TIM2_IsTimeElapsed()) {
             TIM2_Stop();
             ctx->state = BOOT_STATE_JUMP_TO_APP;
-            return FW_ERR_TIMEOUT_CMD;
+            return FW_TIMEOUT_CMD;
         }
         if (timeout_ms == 0) continue;
         delay_ms(1);

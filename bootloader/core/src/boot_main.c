@@ -80,7 +80,7 @@ void print_firmware_status(fw_status_t status)
             send_message(g_boot_ctx, "Firmware update error: communication failure\n");
             break;
 
-        case FW_ERR_TIMEOUT_CMD:
+        case FW_TIMEOUT_CMD:
             send_message(g_boot_ctx, "Firmware update error: command timeout\n");
             break;
 
@@ -122,6 +122,12 @@ int boot_main(void) {
     boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg, (const uint8_t[]){BOOT_FINISH_SIGNAL}, 1);
     send_message(&boot_ctx,"Bootloader is running...\r\n");
     fw_status_t fw_st = receive_fw_update_request(&boot_ctx);
+    if( (fw_st == FW_TIMEOUT_CMD)) {
+        send_message(&boot_ctx,"No update request received.\r\n");
+    } else if(fw_st != FW_OK) {
+        send_message(&boot_ctx,"firmware update request encounter problem.\r\n");
+        return -1;
+    }
     fw_st = handle_update_request(&boot_ctx, &fw_addr, &fw_size);
     fw_st = process_boot_state(&boot_ctx, &fw_addr, &fw_size);
     // handle errors here
