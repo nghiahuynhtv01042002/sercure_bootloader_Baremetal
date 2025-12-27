@@ -3,9 +3,7 @@
 #include <cstdio>
 #include <cstring>
 
-// ====== Define bootloader constants (add your own) ======
-
-
+// ====== Define bootloader constants ======
 
 #define START_CMD        (0x55)
 #define START_ACK        (0xAA)
@@ -247,11 +245,24 @@ bool Sender::sendFirmware(const std::string &filepath,
     std::cout << "[OK] Firmware upload complete.\n";
 
     fclose(fw);
-    ser.close();
+    // ser.close();
     return true;
 
 fail:
+    std::cout << "[FAIL] Firmware upload failed.\n";
     fclose(fw);
     ser.close();
     return false;
+}
+
+void Sender::printMcuLog(int timeout_ms) {
+    uint8_t ch;
+    DWORD start = GetTickCount();
+    while (GetTickCount() - start < (DWORD)timeout_ms) {
+        if (ser.read(&ch, 1) > 0) {
+            std::cout << ch;
+            std::cout.flush();
+            start = GetTickCount();
+        }
+    }
 }

@@ -170,6 +170,10 @@ fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32
     *fw_size = 0;
     if (recv_and_ack_size(ctx, fw_size, FW_SIZE_ACK) != FW_OK) return FW_ERR_COMM;
 
+    if( *fw_size == 0 || *fw_size > MAX_FW_SIZE) {
+        return FW_ERR_INVALID_SIZE;
+    }
+
     // 3. Wait erase + erase
     if (wait_and_erase(ctx,flash_get_sector(flash_addr)) != FW_OK) return FW_ERR_FLASH_ERASE;
 
@@ -183,7 +187,9 @@ fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32
     uint32_t sig_addr = flash_addr + *fw_size;
 
     if (recv_and_ack_size(ctx, &sig_size, SIGNATURE_ACK) != FW_OK)  return FW_ERR_COMM;
-
+    if( sig_size == 0 || sig_size > MAX_SIG_SIZE) {
+        return FW_ERR_INVALID_SIG_SIZE;
+    }
     // 6. Receive signature data
     if (recv_and_write_chunks(ctx, sig_addr, sig_size, SIGNATURE_ACK) != FW_OK) return FW_ERR_FLASH_WRITE;
 
@@ -217,7 +223,7 @@ fw_status_t handle_update_request(boot_handle_t *boot_ctx, uint32_t* fw_addr, ui
     switch (boot_ctx->state)
     {
         case BOOT_STATE_NORMAL_UPDATE:
-            // receive new firmware into staging bank (inactive bank )
+            // receive new firmware into staging bank (inactive bank)
             *fw_addr = FW_STAGING_ADDR;
             fw_st = receive_new_firmware(boot_ctx, *fw_addr, fw_size);
             boot_ctx->state = BOOT_STATE_VERIFY_SIGNATURE;
@@ -256,7 +262,6 @@ fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t* fw_addr, uint3
                 else {
                     *fw_addr = FW_FLASH_ADDR;
                     jump_to_app = 1;
-
                 }
             } else {
                 jump_to_app = 0;

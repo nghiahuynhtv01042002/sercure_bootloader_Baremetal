@@ -9,22 +9,34 @@ static void sleep_ms(int ms) {
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
+void print_usage(const char* prog) {
+    std::cout << "Usage: " << prog << " -p <PORT> -i <FW_FILE> -s <SIG_FILE>\n"
+              << "Options:\n"
+              << "  -p : Serial port (e.g., COM3 or /dev/ttyUSB0)\n"
+              << "  -i : Firmware binary file (.bin)\n"
+              << "  -s : Signature file (.sig)\n";
+}
+
 int main(int argc, char *argv[])
 {
     std::cout << "========================================\n";
     std::cout << "  Firmware Upload Tool v1.0\n";
     std::cout << "========================================\n\n";
 
-    if (argc < 4) {
-        std::cout << "Usage: " << argv[0] << " <COM_PORT> <FIRMWARE_FILE> <SIGNATURE>\n\n";
-        std::cout << "Example:\n";
-        std::cout << "  Windows: " << argv[0] << " COM3 firmware.bin signature.sig\n";
-        return 1;
+    std::string com_port, fw_path, sig_path;
+
+    // --- Parse Arguments ---
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "-p" && i + 1 < argc) com_port = argv[++i];
+        else if (arg == "-i" && i + 1 < argc) fw_path = argv[++i];
+        else if (arg == "-s" && i + 1 < argc) sig_path = argv[++i];
     }
 
-    std::string com_port = argv[1];
-    std::string fw_path  = argv[2];
-    std::string sig_path = argv[3];
+    if (com_port.empty() || fw_path.empty() || sig_path.empty()) {
+        print_usage(argv[0]);
+        return 1;
+    }
 
     serial ser;
     uint32_t baudrate = 115200;
@@ -54,23 +66,29 @@ int main(int argc, char *argv[])
     std::cout << "Enter command: ";
     std::cin.get(reinterpret_cast<char&>(cmd));
     // if skip, just exit
-    if (cmd == 's' || cmd == 'S') {
-        std::cout << "Skipping firmware update.\n";
-        ser.close();
-        return 0;
-    }
-    // 1. Send update signal
+
     if (!sender.sendUpdateSignal(cmd)) {
         std::cout << "Failed to send update signal\n";
         return -2;
     }
 
-    // 2. Send firmware and signature
+    if (cmd == 's' || cmd == 'S') {
+        std::cout << "Skipping firmware update.\n";
+        std::cout << "\nMCU Log:\n";
+        sender.printMcuLog(3000);
+        ser.close();
+        return 0;
+    }
+
     if (!sender.sendFirmware(fw_path, sig_path)) {
         std::cout << "Firmware upload failed!\n";
         return -3;
     }
 
-    std::cout << "\nFirmware upload successful!\n";
+    std::cout << "Firmware upload successful!\n";
+
+    std::cout << "\nMCU Log:\n";
+    sender.printMcuLog(3000);
+    ser.close();
     return 0;
 }

@@ -12,7 +12,7 @@ public:
     bool sendUpdateSignal(uint8_t cmd);
     bool sendFirmware(const std::string &filepath, const std::string &sig_path);
     bool waitAck(uint8_t expected_ack, int timeout_ms);
-
+    void printMcuLog(int timeout_ms = 100);
 
 private:
     serial &ser;

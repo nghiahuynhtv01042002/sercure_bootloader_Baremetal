@@ -12,6 +12,8 @@
 #define FW_FLASH_ADDR   (0x08020000UL) // (bank1 use for app)
 #define FW_STAGING_ADDR (0x08010000UL) // (bank2 use for staging)
 #define METADATA_ADDR   (0x08004000UL)
+#define MAX_FW_SIZE     (128 * 1024) // 128KB
+#define MAX_SIG_SIZE    (16 * 1024) // 16KB
 
 #define APP_SECTION_NUMBER (1)
 #define APP_BACKUP_SECTION_NUMBER (4)

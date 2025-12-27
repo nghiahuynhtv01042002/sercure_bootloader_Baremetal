@@ -41,5 +41,5 @@ set flash_fw_cli=".\custom-tool\firmware-flash-cpp\firmware-flash-build\firmware
 echo "press any key to start running cli tool..."
 pause
 
-echo %flash_fw_cli% COM3 %app_path% %sig_path%
-%flash_fw_cli% COM3 %app_path% %sig_path% 
+echo %flash_fw_cli% -p COM3 -i %app_path% -s %sig_path%
+%flash_fw_cli% -p COM3 -i %app_path% -s %sig_path%
