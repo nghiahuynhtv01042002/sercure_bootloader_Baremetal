@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
     if (cmd == 's' || cmd == 'S') {
         std::cout << "Skipping firmware update.\n";
         std::cout << "\nMCU Log:\n";
-        sender.printMcuLog(3000);
+        sender.printMcuLog(7000);
         ser.close();
         return 0;
     }
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
     std::cout << "Firmware upload successful!\n";
 
     std::cout << "\nMCU Log:\n";
-    sender.printMcuLog(3000);
+    sender.printMcuLog(7000);
     ser.close();
     return 0;
 }

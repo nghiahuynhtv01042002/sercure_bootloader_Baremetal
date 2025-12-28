@@ -134,20 +134,15 @@ int boot_main(void) {
     fw_st = handle_update_request(&boot_ctx, &fw_addr, &fw_size);
     if( fw_st != FW_OK) {
         send_message(&boot_ctx,"Handling update request failed.\r\n");
-        while (1) {
-            print_firmware_status(fw_st);
-            delay_ms(3000);
-        }
-    
+        print_firmware_status(fw_st);
+        return -1;
     }
     fw_st = process_boot_state(&boot_ctx, &fw_addr, &fw_size);
     // handle errors here
     if (fw_st != FW_OK) {
         send_message(&boot_ctx,"Firmware update failed with error code: ");
-        while (1) {
-            print_firmware_status(fw_st);
-            delay_ms(3000);
-        }
+        print_firmware_status(fw_st);
+        return -1;
     }
     return 0;
 }

@@ -260,13 +260,23 @@ fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t* fw_addr, uint3
                     return FW_ERR_COPY_FW;
                 }
                 //  copy signature into metadata area
-                if (flash_copy_data_blk(FW_STAGING_ADDR + *fw_size,
-                     read_sig_addr_from_flash(), 
-                     SIGNATURE_SIZE) != FLASH_OK) {
-                    return FW_ERR_COPY_FW;
-                }
+        
+                fw_metadata_t metadata;
+                metadata.version = FW_VERSION;
+                metadata.fw_addr = *fw_addr;
+                metadata.fw_size = *fw_size;
+                metadata.sig_addr = *fw_addr + *fw_size;
+                metadata.sig_len = SIGNATURE_SIZE;
+                metadata.flags = FW_FLAG_VALID;
+
+                if (flash_erase_sector(flash_get_sector(METADATA_ADDR)) != FLASH_OK) return FW_ERR_FLASH_ERASE; 
+                if (flash_write_blk( METADATA_ADDR, (uint8_t *)&metadata, sizeof(fw_metadata_t)) != FLASH_OK)   return FW_ERR_FLASH_WRITE;
+
                 *fw_addr = FW_FLASH_ADDR;
+                *fw_size = read_fw_size_from_flash();
+                
                 jump_to_app = 1;
+
             } else {
                 jump_to_app = 0;
             }

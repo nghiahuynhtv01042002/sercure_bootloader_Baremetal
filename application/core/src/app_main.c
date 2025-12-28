@@ -18,9 +18,10 @@ int app_main(void) {
     uart_config(&uart_cfg);
     TIM2_Init();
     RCC_AHB1ENR |= RCC_AHB1ENR_GPIOD_EN;
-    // printf("App is running in  update normal mode....\n");
-    printf("App is running in  force update mode....\n");
+    printf("App is running in  update normal mode....\n");
+    // printf("App is running in  force update mode....\n");
     // printf("App is running in  skip update mode....\n");
+    // printf("App is Invalid app....\n");
     printf("===end====\n");
 
     return 0;
