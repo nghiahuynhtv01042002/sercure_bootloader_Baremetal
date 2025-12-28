@@ -24,5 +24,6 @@ typedef struct {
 
 uint32_t read_fw_size_from_flash(void);
 uint32_t read_fw_addr_from_flash(void);
-
+uint32_t read_sig_addr_from_flash(void);
+uint16_t read_sig_len_from_flash(void);
 #endif // FW_METADATA_H

@@ -121,20 +121,33 @@ int boot_main(void) {
     // send acknowledgment after boot init
     boot_ctx.comm_if->send(boot_ctx.comm_if->comm_cfg, (const uint8_t[]){BOOT_FINISH_SIGNAL}, 1);
     send_message(&boot_ctx,"Bootloader is running...\r\n");
+
     fw_status_t fw_st = receive_fw_update_request(&boot_ctx);
+    
     if( (fw_st == FW_TIMEOUT_CMD)) {
         send_message(&boot_ctx,"No update request received.\r\n");
     } else if(fw_st != FW_OK) {
         send_message(&boot_ctx,"firmware update request encounter problem.\r\n");
         return -1;
     }
+
     fw_st = handle_update_request(&boot_ctx, &fw_addr, &fw_size);
+    if( fw_st != FW_OK) {
+        send_message(&boot_ctx,"Handling update request failed.\r\n");
+        while (1) {
+            print_firmware_status(fw_st);
+            delay_ms(3000);
+        }
+    
+    }
     fw_st = process_boot_state(&boot_ctx, &fw_addr, &fw_size);
     // handle errors here
     if (fw_st != FW_OK) {
         send_message(&boot_ctx,"Firmware update failed with error code: ");
-        print_firmware_status(fw_st);
-        while (1);
+        while (1) {
+            print_firmware_status(fw_st);
+            delay_ms(3000);
+        }
     }
     return 0;
 }

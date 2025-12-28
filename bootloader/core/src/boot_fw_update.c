@@ -192,25 +192,25 @@ fw_status_t receive_new_firmware(boot_handle_t *ctx, uint32_t flash_addr, uint32
     }
     // 6. Receive signature data
     if (recv_and_write_chunks(ctx, sig_addr, sig_size, SIGNATURE_ACK) != FW_OK) return FW_ERR_FLASH_WRITE;
+    // write metadata only if fw is forece updated to active bank
+    if( flash_addr != FW_STAGING_ADDR ) {
+        // 7. Store and write metadata
+        fw_metadata_t metadata;
+        metadata.version = FW_VERSION;
+        metadata.fw_addr = flash_addr;
+        metadata.fw_size = *fw_size;
+        metadata.sig_addr = sig_addr;
+        metadata.sig_len = sig_size;
+        metadata.flags = FW_FLAG_VALID;
 
-    // 7. Store and write metadata
-    fw_metadata_t metadata;
-    metadata.version = FW_VERSION;
-    metadata.fw_addr = flash_addr;
-    metadata.fw_size = *fw_size;
-    metadata.sig_addr = sig_addr;
-    metadata.sig_len = sig_size;
-    metadata.flags = FW_FLAG_VALID;
-
-    if (flash_erase_sector(flash_get_sector(METADATA_ADDR)) != FLASH_OK) return FW_ERR_FLASH_ERASE; 
-    if (flash_write_blk( METADATA_ADDR, (uint8_t *)&metadata, sizeof(fw_metadata_t)) != FLASH_OK)   return FW_ERR_FLASH_WRITE;
-    
+        if (flash_erase_sector(flash_get_sector(METADATA_ADDR)) != FLASH_OK) return FW_ERR_FLASH_ERASE; 
+        if (flash_write_blk( METADATA_ADDR, (uint8_t *)&metadata, sizeof(fw_metadata_t)) != FLASH_OK)   return FW_ERR_FLASH_WRITE;
+    }
     return FW_OK;
 }
 
 fw_status_t receive_fw_update_request(boot_handle_t *boot_ctx) {
     TIM2_Init();
-    // send_message(boot_ctx,"Waiting for firmware update command...\r\n");
     fw_status_t status = FW_ERR_COMM;
     status = wait_for_update_signal(boot_ctx, 5000);
     TIM2_Stop();
@@ -252,17 +252,21 @@ fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t* fw_addr, uint3
     switch (boot_ctx->state)
     {
         case BOOT_STATE_VERIFY_SIGNATURE:
-            *fw_size = read_fw_size_from_flash();
-            vr = verify_firmware(*fw_addr, *fw_size);
+            // *fw_size = read_fw_size_from_flash();????
+            vr = verify_firmware(*fw_addr, *fw_size); 
             if (vr == RSA_VERIFY_OK) {
                 // write firmware to active bank
-                if(flash_copy_firmware(FW_STAGING_ADDR,FW_FLASH_ADDR,*fw_size)!= FLASH_OK) {
+                if(flash_copy_data_blk(FW_STAGING_ADDR,FW_FLASH_ADDR,*fw_size)!= FLASH_OK) {
                     return FW_ERR_COPY_FW;
                 }
-                else {
-                    *fw_addr = FW_FLASH_ADDR;
-                    jump_to_app = 1;
+                //  copy signature into metadata area
+                if (flash_copy_data_blk(FW_STAGING_ADDR + *fw_size,
+                     read_sig_addr_from_flash(), 
+                     SIGNATURE_SIZE) != FLASH_OK) {
+                    return FW_ERR_COPY_FW;
                 }
+                *fw_addr = FW_FLASH_ADDR;
+                jump_to_app = 1;
             } else {
                 jump_to_app = 0;
             }

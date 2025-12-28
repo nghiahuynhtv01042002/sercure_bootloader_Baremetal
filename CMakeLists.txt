@@ -12,7 +12,7 @@ set(APP_BIN  ${CMAKE_BINARY_DIR}/APPLICATION/application.bin)
 
 # Flash addresses
 set(BOOT_ADDRESS 0x08000000)
-set(APP_ADDRESS  0x08008000)
+set(APP_ADDRESS  0x08020000L)
 
 # Create flash_all custom target
 add_custom_target(flash_all
