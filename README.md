@@ -1,22 +1,4 @@
-Searched for regex `test|unit test|unittest|CTest|catch2|googletest|AUTO_TEST`, 20 results
-
-Searched for regex `sha256_hash|sha256_init|sha256_final`, 9 results
-
-Read [](file:///g%3A/VScode/ws/secure-bootloader/auto_test_cpp.bat)
-
-Read [](file:///g%3A/VScode/ws/secure-bootloader/custom-tool/gen-rsakeys/convert_keys.py)
-
-Searched for regex `#include.*HAL|stm32|stm32f|HAL_`, 20 results
-
-Read [](file:///g%3A/VScode/ws/secure-bootloader/custom-tool/firmware-flash-cpp/build.bat)
-
-Read [](file:///g%3A/VScode/ws/secure-bootloader/bootloader/driver/src/uart.c#1-1), lines 1 to 300
-
-Read [](file:///g%3A/VScode/ws/secure-bootloader/bootloader/CMakeLists.txt)
-
-Read [](file:///g%3A/VScode/ws/secure-bootloader/custom-tool/gen-rsakeys/gen_rsa_key.bat)
-
-Perfect! I reviewed the repository and build scripts; next I'll produce a focused, accurate README.md that reflects implemented scope, design decisions, build instructions, testing status, and a practical roadmap.# Secure Bootloader (bare-metal)
+# Secure Bootloader (bare-metal)
 
 ## Project summary
 
@@ -137,36 +119,49 @@ Key generation & signature:
 - Note: OpenSSL and Python are used in the host-side key generation pipeline (development-time only). The runtime bootloader contains no OpenSSL dependency.
 
 Automated hardware-driven script:
-- auto_test_cpp.bat orchestrates building the application, generating signatures, building the bootloader, building the firmware uploader, and driving the upload manually (hardware-in-the-loop).
+- auto_test.bat  orchestrates building the application, generating signatures, building the bootloader, building the firmware uploader, and driving the upload manually (hardware-in-the-loop).
 
 Cross-compilation notes:
 - arm-toolchain.cmake expects a local GCC ARM embedded toolchain in arm-non-eabi or an equivalent toolchain on PATH. Adjust `TOOLCHAIN_PATH` in the file or pass a different toolchain file.
 - The build is intentionally minimal to reduce reliance on toolchain-specific features.
 
 ---
+## Testing 
+### 1. Normal Update
 
-## Testing status — honest assessment
+Scenario: Bootloader receives valid firmware and signature.
+Expected Behavior: Firmware is verified successfully, then the application is booted.
+Screenshot:
+![normal_update](Image_report/normal_update.png) 
 
-Current test coverage:
-- No formal unit test framework is present in the repo (no automated unit tests).
-- SHA-256 / RSA verification are exercised by the integration script that signs a freshly built application with OpenSSL and transfers it to a device via the serial protocol; the bootloader performs verification on device hardware.
-- The test flow (auto_test_cpp.bat) is a manual/hardware-driven integration flow — it assumes an attached STM32 device on a serial port and uses OpenSSL on host to create test data.
 
-What is tested:
-- Integration scenario: sign an application, upload, have bootloader validate signature and accept/deny firmware accordingly (on hardware).
-- Basic error handling in the bootloader's transfer protocol (timeout, signature size checks, flash write return codes).
+### 2. Forced Update
 
-Partially tested:
-- Core big-int operations and modular exponentiation are exercised as part of the RSA verification in integration tests, but they lack independent unit tests and test vectors for all edge cases (carry behavior, normalization, multi-word arithmetic, division, etc).
-- SHA-256 is used end-to-end and therefore exercised, but explicit test vectors (NIST test vectors) are not implemented as unit tests.
+Scenario: Bootloader initiates update regardless of timeout.
+Expected Behavior: Firmware is received, verified, and application is booted.
+Screenshot:
+![force_update](Image_report/force_update.png)
 
-Not finished / open work:
-- No unit tests for big-int arithmetic, PKCS#1 parsing edge cases, or SHA-256 reference vectors.
-- No CI pipelines are included to run host-based unit tests or static analysis.
-- No fuzzing or formal verification of parser & bigint routines.
-- No hardening for side-channel or fault-injection vulnerabilities.
+###  3. No Update on Timeout
 
-Testing philosophy: correctness and verifiability are prioritized over raw speed. For production use, add deterministic unit tests (NIST vectors), automated CI, static analysis (e.g., clang-tidy, cppcheck), and fuzzing on the big-int and PKCS#1 code.
+Scenario: Bootloader waits for an update signal, but timeout expires.
+Expected Behavior: Existing valid application is booted; no update occurs.
+Screenshot:
+![no_update_timeout](Image_report/no_update_timeout.png) 
+
+### 4. Skip Update
+
+Scenario: Bootloader receives update request, but user aborts the process.
+Expected Behavior: Existing firmware is booted; update is skipped.
+Screenshot:
+![skip_update](Image_report/skip_udpate.png)
+
+### 5. Invalid Application
+
+Scenario: Bootloader receives firmware with invalid signature.
+Expected Behavior: Update fails; bootloader does not boot the application.
+Screenshot:
+ ![Invalid_app](Image_report/Invalid_app.png) 
 
 ---
 
@@ -183,32 +178,7 @@ Testing philosophy: correctness and verifiability are prioritized over raw speed
   - firmware-flash-cpp/ — native host tool to upload firmware via serial
   - gen-rsakeys/ — OpenSSL-based helper to generate private/public key, sign firmware, and convert to C arrays
 - tools/ — included local copies of toolchain helpers and STM programming utilities (for convenience in a single workspace)
-- auto_build.bat / auto_test_cpp.bat — convenience scripts to run build/test flows on Windows.
-
----
-
-## Roadmap & next steps (recommended)
-
-Priority items to make this production-ready:
-1. Unit tests and reference vectors:
-   - Add host-run unit tests for SHA-256 against NIST test vectors.
-   - Add exhaustive bigint unit tests covering boundary conditions for add/sub/mul/div/mod/shift and modular exponentiation.
-   - Add deterministic tests for PKCS#1 v1.5 parsing & mismatch handling.
-2. CI & reproducible builds:
-   - Add a CI pipeline (e.g., GitHub Actions) to build host tests and cross-compile bootloader using a reproducible containerized toolchain.
-   - Incorporate static analyzers and sanitizers where useful (host-run tests can be instrumented).
-3. Cryptographic hardening:
-   - Introduce constant-time implementations and exponent blinding for modular exponentiation.
-   - Add mitigations for fault injection where applicable.
-   - Consider supporting RSA-PSS and/or ECDSA for modern signature schemes.
-4. Key provisioning & device identity:
-   - Add secure key provisioning steps and a plan for verifying key authenticity/rotation without embedding long-term keys in plain firmware images.
-5. Test automation with hardware-in-the-loop:
-   - Add automated test harnesses for flashing and verification using an attached device (preferably in a test bench or CI environment).
-6. Fuzzing & robustness:
-   - Fuzz parsers (signature/padding) and bigint routines to find edge-cases and memory issues.
-7. Documentation & code hygiene:
-   - Add code-level documentation, a CONTRIBUTING.md and a SECURITY.md with responsible disclosure instructions.
+- auto_build.bat / auto_test.bat  — convenience scripts to run build/test flows on Windows.
 
 ---
 

@@ -237,7 +237,8 @@ fw_status_t handle_update_request(boot_handle_t *boot_ctx, uint32_t* fw_addr, ui
             return fw_st;
             break;
         case BOOT_STATE_JUMP_TO_APP:
-            *fw_addr = read_fw_addr_from_flash();
+            // *fw_addr = read_fw_addr_from_flash();
+            boot_ctx->state = BOOT_STATE_JUMP_TO_APP;
             return FW_OK;
             break;
         default:
@@ -252,7 +253,6 @@ fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t* fw_addr, uint3
     switch (boot_ctx->state)
     {
         case BOOT_STATE_VERIFY_SIGNATURE:
-            // *fw_size = read_fw_size_from_flash();????
             vr = verify_firmware(*fw_addr, *fw_size); 
             if (vr == RSA_VERIFY_OK) {
                 // write firmware to active bank
@@ -287,7 +287,7 @@ fw_status_t process_boot_state(boot_handle_t *boot_ctx, uint32_t* fw_addr, uint3
             break;
         case BOOT_STATE_JUMP_TO_APP:
             *fw_size = read_fw_size_from_flash();
-            vr = verify_firmware(*fw_addr, *fw_size);
+            vr = verify_firmware(FW_FLASH_ADDR, *fw_size);
             if (vr == RSA_VERIFY_OK) {
                 jump_to_app = 1;
             } else {

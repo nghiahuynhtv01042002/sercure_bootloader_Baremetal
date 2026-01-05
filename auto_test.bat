@@ -34,12 +34,16 @@ rem execute test
 echo ###########################################
 echo execute test
 echo ###########################################
+set flash_fw_cli=".\custom-tool\firmware-flash-cpp\firmware-flash-build\firmware_sender.exe"
 
 set app_path="build\application\application.bin"
 set sig_path=".\custom-tool\gen-rsakeys\signature.sig"
-set flash_fw_cli=".\custom-tool\firmware-flash-cpp\firmware-flash-build\firmware_sender.exe"
 echo "press any key to start running cli tool..."
 pause
 
 echo %flash_fw_cli% -p COM3 -i %app_path% -s %sig_path%
 %flash_fw_cli% -p COM3 -i %app_path% -s %sig_path%
+
+@REM to inject invalid application/firmware.
+@REM auto_build.bat application 
+@REM auto_build.bat flash_app
